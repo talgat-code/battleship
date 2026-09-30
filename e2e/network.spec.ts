@@ -1,6 +1,8 @@
 import { test,expect } from '@playwright/test';
+import {hasSupabase} from './environment';
 
 test('friend entry preserves invite through login; unconfigured service never simulates a match',async({page})=>{
+  test.skip(hasSupabase,'This scenario checks the unconfigured-service notice.');
   await page.goto('/?invite=9d9e6427-dd82-4e23-acb0-a539c2be471a');
   await expect(page.getByRole('heading',{name:'Играть с другом'})).toBeVisible();
   await expect(page.getByText(/Сервис аккаунтов и сетевой игры не настроен/)).toBeVisible();

@@ -7,4 +7,6 @@ import { AudioProvider } from './Audio';
 import './style.css';
 import './twilight.css';
 import './world.css';
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><I18n><AudioProvider><Entry /></AudioProvider></I18n></React.StrictMode>);
+import {AppBoundary} from './Recovery';
+import './account/auth.css';
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AppBoundary><I18n><AudioProvider><Entry /></AudioProvider></I18n></AppBoundary></React.StrictMode>);

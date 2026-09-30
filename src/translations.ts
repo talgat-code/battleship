@@ -1,5 +1,11 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+Логин|Логин|Username
+Логин или почта|Логин немесе пошта|Username or email
+Показать пароль|Құпиясөзді көрсету|Show password
+Скрыть пароль|Құпиясөзді жасыру|Hide password
+3–24 символа: латинские буквы, цифры и _. Регистр не важен. Почта не нужна.|3–24 таңба: латын әріптері, сандар және _. Регистр маңызды емес. Пошта қажет емес.|3–24 characters: Latin letters, digits and _. Case insensitive. No email needed.
+Пароль: 8–72 символа. Сохраните его: восстановление через почту для тестовых логинов недоступно.|Құпиясөз: 8–72 таңба. Оны сақтаңыз: тест логинін пошта арқылы қалпына келтіру мүмкін емес.|Password: 8–72 characters. Keep it safe: email recovery is unavailable for test usernames.
 Играть с ботом|Ботпен ойнау|Play with bot
 Играть с другом|Доспен ойнау|Play with friend
 Таблица лидеров|Көшбасшылар кестесі|Leaderboard

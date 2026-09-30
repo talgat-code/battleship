@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { STORAGE_KEY } from '../src/game';
+import {hasSupabase} from './environment';
 test('guest entry, account forms without service, and intact guest continuation', async ({ page }) => {
+  test.skip(hasSupabase,'This scenario checks an unconfigured service; use auth-configured.spec.ts with Supabase configured.');
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Играть без регистрации', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/start-desktop.png', fullPage: true });

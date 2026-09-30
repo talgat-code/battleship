@@ -13,7 +13,7 @@ test('LIVE Supabase: two accounts, invite, fleet, reconnect, victory, ranking an
   const host=await a.newPage(),guest=await b.newPage();
   async function login(page:Page,index:number){
     await page.getByRole('button',{name:'Войти',exact:true}).click();
-    await page.getByLabel('Электронная почта').fill(credentials[index].email!);
+    await page.getByLabel('Логин или почта').fill(credentials[index].email!);
     await page.getByLabel('Пароль', {exact:true}).fill(credentials[index].password!);
     await page.getByRole('button',{name:'Войти в аккаунт'}).click();
   }

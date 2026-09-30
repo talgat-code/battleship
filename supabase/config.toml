@@ -1,0 +1,3 @@
+[functions.login-auth]
+# Registration/login precede the user JWT. Password verification happens in Auth.
+verify_jwt = false

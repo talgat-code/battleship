@@ -33,7 +33,7 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
     finally { setBusy(false); }
   }
   useEffect(() => { void load(); }, [user.id]);
-  return <section className="entry-card profile-card"><small>{t("ЛИЧНОЕ ДЕЛО")}</small><h1>{t("Профиль командира")}</h1><p>{tr(user.email)}</p><p>{t("На службе с ")}{tr(new Date(user.created_at).toLocaleDateString(dateLocale()))}</p>
+  return <section className="entry-card profile-card"><small>{t("ЛИЧНОЕ ДЕЛО")}</small><h1>{t("Профиль командира")}</h1><p>{tr(user.app_metadata?.fleet_login || user.email)}</p><p>{t("На службе с ")}{tr(new Date(user.created_at).toLocaleDateString(dateLocale()))}</p>
     <form onSubmit={async e => { e.preventDefault(); setBusy(true); try { const { error } = await supabase!.from('profiles').update({ nickname: name.trim() }).eq('id', user.id); if (error) throw error; setMessage('Имя сохранено.'); } catch { setMessage('Не удалось сохранить имя. Попробуйте ещё раз.'); } finally { setBusy(false); } }}>
       <label>{t("Позывной")}<input value={name} onChange={e => setName(e.target.value)} disabled={busy || !loaded} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy || !loaded}>{t("Сохранить имя")}</button>
     </form><p aria-live="polite">{tr(busy ? 'Загрузка…' : message)}</p>

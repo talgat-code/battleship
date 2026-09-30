@@ -12,6 +12,7 @@ import Sharks from './scene/Sharks';
 import RenderLoop from './scene/RenderLoop';
 import { PROJECTION, GRID } from './scene/projection';
 import useMedia from './useMedia';
+import {SceneBoundary} from './Recovery';
 
 function FitCamera() {
   const { camera, size, invalidate } = useThree();
@@ -90,7 +91,7 @@ export default function Board({ targeting=false, revealed=[], ability, allowUsed
       <div className={`board ${enemy ? 'enemy-board' : ''} ${active ? 'board-active' : ''}`} style={{ aspectRatio: PROJECTION.aspect }}>
         <div className="column-labels" style={{ top: `${(GRID.top - .055) * 100}%` }}>{tr([...LETTERS].map((l, i) => <span className={aim && focused.x === i ? 'coordinate-active' : ''} key={l}>{tr(l)}</span>))}</div>
         <div className="row-labels" style={{ top: `${GRID.top * 100}%`, height: `${GRID.height * 100}%` }}>{tr(Array.from({ length: 10 }, (_, i) => <span className={aim && focused.y === i ? 'coordinate-active' : ''} key={i}>{tr(i + 1)}</span>))}</div>
-        <Canvas orthographic frameloop="demand" resize={{ debounce: 0 }} shadows={!lite && moving} camera={{ position: [0, PROJECTION.cameraY, PROJECTION.cameraZ + PROJECTION.targetZ], zoom: 35, near: .1, far: 100 }} dpr={lite || !moving ? 1 : [1, 1.25]} gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }} fallback={<div className="canvas-fallback">{t("3D недоступно — клетки остаются доступны")}</div>}>
+        <SceneBoundary fallback={<div className="scene-fallback">2D</div>}><Canvas orthographic frameloop="demand" resize={{ debounce: 0 }} shadows={!lite && moving} camera={{ position: [0, PROJECTION.cameraY, PROJECTION.cameraZ + PROJECTION.targetZ], zoom: 35, near: .1, far: 100 }} dpr={lite || !moving ? 1 : [1, 1.25]} gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }} fallback={<div className="canvas-fallback">{t("3D недоступно — клетки остаются доступны")}</div>}>
           <color attach="background" args={['#263d56']} /><fog attach="fog" args={['#718495', 26, 39]} />
           <RenderLoop moving={animated} lite={lite} onSlow={() => setStrained(true)} /><FitCamera />
           <hemisphereLight args={['#a6c0f5', '#101a3c', 1.25]} />
@@ -100,14 +101,14 @@ export default function Board({ targeting=false, revealed=[], ability, allowUsed
           {tr(data.ships.filter(s => !enemy || isSunk(s, data.shots)).map(s => <Vessel key={s.id} ship={s} sunk={isSunk(s, data.shots)} moving={animated} detailed={zoom && !enemy} lite={lite} />))}
           {tr(ability && animated && <AbilityEffect key={ability.id} event={ability} lite={lite}/>)}
           {tr(last && animated && <Impact key={`${last.x}-${last.y}-${data.shots.length}`} shot={last} lite={lite} />)}
-        </Canvas>
+        </Canvas></SceneBoundary>
         <div className="cell-grid" style={{ top: `${GRID.top * 100}%`, height: `${GRID.height * 100}%` }} role="group" aria-label={tr(label)} onMouseLeave={() => { if (!touch) { setFocused(null); onHover?.(null); } }}>
           {tr(Array.from({ length: 100 }, (_, i) => {
             const c = { x: i % 10, y: Math.floor(i / 10) };
             const shot = data.shots.find(s => same(s, c));
             const selected = preview.some(p => same(p, c));
             const isFocused = aim && same(focused, c);
-            return <button key={i} type="button" aria-label={tr(`${label} ${LETTERS[c.x]}${c.y + 1}${shot ? ` ${shot.result === 'miss' ? 'мимо' : shot.result === 'sunk' ? 'потоплен' : 'попадание'}` : ''}`)} disabled={!active || (!!shot&&!allowUsed)} className={`cell ${enemy&&data.ships.some(s=>revealed.includes(s.id)&&!isSunk(s,data.shots)&&s.cells.some(p=>same(p,c)))?'revealed':''} ${shot?.result || ''} ${selected ? valid ? 'preview' : 'invalid' : ''} ${isFocused ? 'focused' : ''} ${last && same(last, c) ? 'last-shot' : ''}`}
+            return <button key={i} type="button" data-ship={data.ships.some(s=>(!enemy||isSunk(s,data.shots))&&s.cells.some(p=>same(p,c)))||undefined} aria-label={tr(`${label} ${LETTERS[c.x]}${c.y + 1}${shot ? ` ${shot.result === 'miss' ? 'мимо' : shot.result === 'sunk' ? 'потоплен' : 'попадание'}` : ''}`)} disabled={!active || (!!shot&&!allowUsed)} className={`cell ${enemy&&data.ships.some(s=>revealed.includes(s.id)&&!isSunk(s,data.shots)&&s.cells.some(p=>same(p,c)))?'revealed':''} ${shot?.result || ''} ${selected ? valid ? 'preview' : 'invalid' : ''} ${isFocused ? 'focused' : ''} ${last && same(last, c) ? 'last-shot' : ''}`}
               onPointerDown={e => { if (e.pointerType === 'touch' || e.pointerType === 'pen') setTouchInput(true); }}
               onMouseEnter={() => { if (!touch) { setFocused(c); onHover?.(c); } }} onFocus={() => { setFocused(c); onHover?.(c); }}
               onClick={() => { setFocused(c); onHover?.(c); if(targeting&&touch){if(touchTarget.current&&same(touchTarget.current,c)){onCell(c);touchTarget.current=null;}else touchTarget.current=c;}else if (!touch || (rotateOnTouch && data.ships.some(s=>s.cells.some(p=>same(p,c))))) onCell(c); }}>
