@@ -14,5 +14,9 @@ from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 where n.nspname='public' and p.proname in ('create_fleet_profile','fleet_shop','fleet_duel','fleet_leaderboard','create_login_identity','fleet_auth_limit');
 select tgname from pg_trigger where tgrelid='auth.users'::regclass and not tgisinternal;
 select to_regclass('supabase_migrations.schema_migrations') as cli_migration_history;
+select to_regprocedure('public.fleet_emote(jsonb)') as emotions_rpc,
+  to_regprocedure('public.duel_channel_member(text)') as private_channel_check,
+  exists(select 1 from information_schema.columns where table_schema='public' and table_name='duel_rooms' and column_name='powers') as network_cards_schema;
+select policyname,roles,cmd,qual from pg_policies where schemaname='realtime' and tablename='messages';
 -- If the last result is non-null, inspect that existing history separately:
 -- select version from supabase_migrations.schema_migrations order by version;

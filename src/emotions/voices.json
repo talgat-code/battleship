@@ -1,5 +1,26 @@
 {
-  "ru": {"laugh": null, "salute": null, "oops": null, "luck": null, "storm": null, "gg": null},
-  "kk": {"laugh": null, "salute": null, "oops": null, "luck": null, "storm": null, "gg": null},
-  "en": {"laugh": null, "salute": null, "oops": null, "luck": null, "storm": null, "gg": null}
+  "ru": {
+    "laugh": "/audio/emotions/ru/laugh.mp3",
+    "salute": "/audio/emotions/ru/salute.mp3",
+    "oops": "/audio/emotions/ru/oops.mp3",
+    "luck": "/audio/emotions/ru/luck.mp3",
+    "storm": "/audio/emotions/ru/storm.mp3",
+    "gg": "/audio/emotions/ru/gg.mp3"
+  },
+  "kk": {
+    "laugh": "/audio/emotions/kk/laugh.mp3",
+    "salute": "/audio/emotions/kk/salute.mp3",
+    "oops": "/audio/emotions/kk/oops.mp3",
+    "luck": "/audio/emotions/kk/luck.mp3",
+    "storm": "/audio/emotions/kk/storm.mp3",
+    "gg": "/audio/emotions/kk/gg.mp3"
+  },
+  "en": {
+    "laugh": "/audio/emotions/en/laugh.mp3",
+    "salute": "/audio/emotions/en/salute.mp3",
+    "oops": "/audio/emotions/en/oops.mp3",
+    "luck": "/audio/emotions/en/luck.mp3",
+    "storm": "/audio/emotions/en/storm.mp3",
+    "gg": "/audio/emotions/en/gg.mp3"
+  }
 }

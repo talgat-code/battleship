@@ -1,6 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { freshGame, randomFleet, STORAGE_KEY, LETTERS } from '../src/game';
 
+test('an async cannon rejected by mobile media policy uses the unlocked audio context',async({page})=>{
+  const game=freshGame();game.player.ships=randomFleet();game.phase='battle';
+  await page.addInitScript(({game,key})=>{
+    localStorage.setItem('fleet:entry','guest');localStorage.setItem(key,JSON.stringify(game));
+    (window as any).decodedDurations=[];
+    const original=HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play=function(){return this.dataset.sound==='cannon'?Promise.reject(new DOMException('Gesture required','NotAllowedError')):original.call(this);};
+    const start=AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start=function(...args:Parameters<typeof start>){(window as any).decodedDurations.push(this.buffer?.duration);return start.apply(this,args);};
+  },{game,key:STORAGE_KEY});
+  await page.goto('/');
+  const duration=await page.evaluate(async()=>{const ctx=new AudioContext();const b=await ctx.decodeAudioData(await(await fetch('/audio/cannon.mp3')).arrayBuffer());await ctx.close();return b.duration;});
+  const cell=game.bot.ships.find(s=>s.length===4)!.cells[0];
+  await page.getByRole('button',{name:`Поле противника ${LETTERS[cell.x]}${cell.y+1}`,exact:true}).click();
+  await expect.poll(()=>page.evaluate(d=>(window as any).decodedDurations.some((n:number)=>Math.abs(n-d)<.01),duration)).toBe(true);
+  await page.getByRole('button',{name:'Выключить звук'}).click();
+  expect(await page.evaluate(()=>localStorage.getItem('fleet:muted'))).toBe('true');
+});
+
 test('real audio starts on gesture, mutes, persists and fires only for a new shot', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).cannonPlays = 0;
@@ -13,6 +32,9 @@ test('real audio starts on gesture, mutes, persists and fires only for a new sho
   await page.getByRole('button', { name: 'Играть без регистрации', exact: true }).click();
   await expect.poll(() => ambient.evaluate((e: HTMLAudioElement) => e.currentTime)).toBeGreaterThan(0);
   expect(await ambient.evaluate((e: HTMLAudioElement) => e.loop)).toBe(true);
+  await ambient.evaluate((e:HTMLAudioElement)=>e.pause());
+  await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await expect.poll(()=>ambient.evaluate((e:HTMLAudioElement)=>e.paused)).toBe(false);
   await page.getByRole('button', { name: 'Выключить звук' }).click();
   expect(await ambient.evaluate((e: HTMLAudioElement) => e.paused)).toBe(true);
   await page.reload();

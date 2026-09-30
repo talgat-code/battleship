@@ -1,5 +1,13 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+На главную|Басты бетке|Home
+Вернуться в бой|Шайқасқа оралу|Return to battle
+Мои комнаты|Менің бөлмелерім|My rooms
+Море и чайки|Теңіз және шағалалар|Sea and gulls
+Эффекты боя|Шайқас әсерлері|Battle effects
+Настройки звука|Дыбыс баптаулары|Sound settings
+С другом — по ссылке, после входа. Карты из вашего арсенала доступны в бою.|Доспен — кіргеннен кейін сілтеме арқылы. Арсенал карталары шайқаста қолжетімді.|Invite a friend after signing in. Your arsenal cards are available in battle.
+Карты из арсенала доступны в бою.|Арсенал карталары шайқаста қолжетімді.|Arsenal cards are available in battle.
 Недопустимый символ в логине: {0}. Используйте латинские буквы, цифры и _.|Логинде рұқсат етілмеген таңба: {0}. Латын әріптерін, сандарды және _ қолданыңыз.|Invalid character in username: {0}. Use Latin letters, digits and _.
 Пользователь зарегистрирован. Профиль создан. Вы вошли в аккаунт.|Пайдаланушы тіркелді. Профиль жасалды. Аккаунтқа кірдіңіз.|Registration successful. Profile created. You are signed in.
 Аккаунт создан, вход выполнен. Профиль пока не удалось загрузить — проверьте подключение или откройте профиль повторно.|Аккаунт жасалды, кіру орындалды. Профиль жүктелмеді — байланысты тексеріңіз немесе профильді қайта ашыңыз.|Account created and signed in. Your profile could not be loaded yet — check your connection or reopen your profile.
@@ -307,5 +315,9 @@ const rows = `
 Адмирал|Адмирал|Admiral
 Оценивает возможные положения оставшихся кораблей.|Қалған кемелердің ықтимал орындарын бағалайды.|Scores possible placements of remaining ships.
 Нет доступных клеток|Қолжетімді торлар жоқ|No available cells
+Как играть|Қалай ойнауға болады|How to play
+С другом — по ссылке, после входа.|Доспен — кіргеннен кейін сілтеме арқылы.|Play a friend by invitation after signing in.
+Пригласите друга по ссылке. Для обоих игроков нужен отдельный аккаунт.|Досыңызды сілтеме арқылы шақырыңыз. Әр ойыншыға бөлек аккаунт қажет.|Invite a friend with a link. Each player needs a separate account.
+Мой профиль|Менің профилім|My profile
 `;
 export const dictionary:Record<string,[string,string]>=Object.fromEntries(rows.trim().split('\n').map(row=>{const [key,kk,en]=row.split('|').map(s=>s.replaceAll('~','\n'));return [key,[kk,en]];}));

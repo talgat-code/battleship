@@ -30,10 +30,52 @@ beforeAll(async()=>{
   await db.exec(readFileSync('supabase/migrations/202609300002_shop.sql','utf8'));
   await db.exec(readFileSync('supabase/migrations/202609300004_duels.sql','utf8'));
   await db.exec(readFileSync('supabase/migrations/202609300006_free_emotions.sql','utf8'));
+  const definitions=await db.query(`select proname,md5(regexp_replace(prosrc,'[[:space:]]','','g')) hash from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname in ('fleet_duel','duel_snapshot') order by proname`);
+  expect(definitions.rows).toEqual([{proname:'duel_snapshot',hash:'f49b58eeac6b7c8982a5b5810a173b92'},{proname:'fleet_duel',hash:'836520ccff4d5a735774ad7e325a234c'}]);
+  await db.exec(`create schema realtime; create table realtime.messages(extension text); alter table realtime.messages enable row level security;
+    create function realtime.topic() returns text language sql as $$ select current_setting('realtime.topic',true) $$;
+    create function realtime.send(jsonb,text,text,boolean) returns void language sql as $$ select $$;`);
+  await db.exec(readFileSync('supabase/migrations/202609300008_live_battle.sql','utf8'));
   for(const id of [host,guest,outsider])await db.query('insert into auth.users(id) values($1)',[id]);
 },30000);
-afterAll(async()=>{await db.close();});
+afterAll(async()=>{
+  await db.exec('reset role');
+  const before=await db.query('select id,host,guest,round,status,host_shots,guest_shots from public.duel_rooms order by id');
+  await db.exec(readFileSync('supabase/rollback_008.sql','utf8'));
+  expect((await db.query('select id,host,guest,round,status,host_shots,guest_shots from public.duel_rooms order by id')).rows).toEqual(before.rows);
+  const room=before.rows.find((r:any)=>r.host===host) as {id:string};
+  expect((await rpc(host,{type:'read',id:room.id})).id).toBe(room.id);
+  await db.close();
+});
 describe('PostgreSQL authority for friend matches',()=>{
+  it('authorizes private notifications only for members and keeps card use atomic and idempotent',async()=>{
+    let r=await create();await rpc(guest,{type:'join',invite:r.invite});await rpc(host,cmd(r,'place',{fleet}));await rpc(guest,cmd(r,'place',{fleet}));
+    expect((await as(outsider,'select public.duel_channel_member($1) ok',['duel:'+r.id])).rows[0]).toEqual({ok:false});
+    expect((await as(host,'select public.duel_channel_member($1) ok',['duel:'+r.id])).rows[0]).toEqual({ok:true});
+    await db.exec('reset role');
+    await db.query(`insert into public.fleet_wallets(user_id,state) values($1,$2) on conflict(user_id) do update set state=excluded.state`,[host,JSON.stringify({version:1,balance:5555,items:{sonar:2,chance:2,bomb:3,signal:11,kraken:10},receipts:[],rewards:[],equipped:[]})]);
+    const card=(name:string,extra={})=>cmd(r,'card',{card:name,...extra});
+    await expect(rpc(guest,card('sonar',{x:0,y:0}))).rejects.toThrow('Not your turn');
+    for(const [name,x] of [['sonar',8],['bomb',9]] as const)await expect(rpc(host,card(name,{x,y:0}))).rejects.toThrow('Invalid area');
+    const sonar=card('sonar',{x:7,y:7});r=await rpc(host,sonar);expect(r.ability?.count).toBe(0);expect(r.arsenal?.items.sonar).toBe(1);
+    expect((await rpc(host,sonar)).arsenal?.items.sonar).toBe(1);expect(r.enemy.shots).toHaveLength(0);expect(r.myTurn).toBe(true);
+    r=await rpc(host,card('chance'));expect(r.bonus).toBe(true);
+    await expect(rpc(host,card('chance'))).rejects.toThrow('Bonus already active');
+    r=await rpc(host,cmd(r,'shoot',{x:9,y:9}));expect(r.myTurn).toBe(true);expect(r.bonus).toBe(false);
+    r=await rpc(host,card('bomb',{x:8,y:8}));expect(r.myTurn).toBe(false);expect(r.ability?.misses).toBe(3);
+    await rpc(guest,cmd(r,'shoot',{x:9,y:9}));
+    await expect(rpc(host,card('bomb',{x:8,y:8}))).rejects.toThrow('No target');
+    r=await rpc(host,card('bomb',{x:0,y:0}));expect(r.myTurn).toBe(true);expect(r.ability?.hits).toBe(2);
+    for(let i=0;i<10;i++)r=await rpc(host,card('signal'));
+    expect(r.revealed).toHaveLength(10);expect(r.enemy.ships).toHaveLength(10);expect(r.enemy.shots).toHaveLength(8);
+    const other=await rpc(guest,{type:'read',id:r.id});expect(other.enemy.ships).toHaveLength(0);
+    await expect(rpc(host,card('signal'))).rejects.toThrow('No target');
+    for(let i=0;i<10;i++)r=await rpc(host,card('kraken'));
+    expect(r.status).toBe('finished');expect(r.won).toBe(true);expect(r.arsenal?.items.kraken).toBe(0);
+    // Keep legacy leaderboard assertions isolated from this additional test match.
+    await db.exec('reset role');await db.query('delete from public.duel_results where room=$1',[r.id]);
+    await db.query('delete from public.fleet_wallets where user_id=$1',[host]);
+  });
   it('keeps emotions free without overwriting historical purchases or card balances',async()=>{
     const shop=async(command:unknown)=>(await as(host,'select public.fleet_shop($1::jsonb) result',[JSON.stringify(command)])).rows[0];
     const before=await shop({type:'read'});

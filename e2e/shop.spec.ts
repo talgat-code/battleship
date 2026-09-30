@@ -86,9 +86,9 @@ test('boosted cards: extra shot, reveal, area attack and kraken',async({page})=>
   await use('Второй шанс');await page.getByRole('button',{name:'Поле противника К10',exact:true}).click();
   await expect(page.getByText('Ваш ход, командир')).toBeVisible();
   await page.getByRole('button',{name:'Поле противника А1',exact:true}).click();
-  await use('Перехват сигнала');expect(await page.locator('.enemy-card .revealed').count()).toBeGreaterThan(0);
+  await use('Перехват сигнала');await expect(page.locator('.enemy-card .revealed').first()).toBeVisible();
   await page.getByRole('button',{name:/Глубинная бомба ×1/}).click();await page.getByRole('button',{name:'Поле противника А1 попадание',exact:true}).click();
-  expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).bot.shots.length,STORAGE_KEY)).toBe(5);
+  await expect.poll(()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).bot.shots.length,STORAGE_KEY)).toBe(5);
   await use('Кракен');await expect(page.locator('.enemy-card .sunk').first()).toBeVisible();
   await page.screenshot({path:'artifacts/boosted-battle.png',fullPage:true});
   const before=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),walletKey);await page.reload();

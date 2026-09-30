@@ -29,7 +29,7 @@ test('archipelago: animated anchors, inspection crew and projected corner shots'
   expect(Math.abs(after.y - .035)).toBeLessThanOrEqual(.026);
   await expect(enemy.locator('canvas')).not.toHaveAttribute('data-motion');
   await expect(ally.locator('canvas')).toHaveAttribute('data-crew', '0');
-  await page.screenshot({ path: 'artifacts/archipelago-desktop.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/archipelago-battle-desktop.png', fullPage: true });
   // Resize must update the camera even when continuous rendering is disabled.
   await page.getByRole('button', { name: 'Живое море', exact: true }).click();
   await ally.getByRole('button', { name: 'Крупные клетки' }).click();

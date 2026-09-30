@@ -1,9 +1,9 @@
-.board-tools{flex-wrap:wrap;align-items:flex-start}
-.fleet-emotions{margin-left:auto;min-width:0;color:#e4eff3}
+.board-tools{align-items:center}
+.fleet-emotions{position:relative;margin-left:auto;min-width:0;color:#e4eff3}
 .fleet-emotions-toolbar{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .fleet-emotions-toolbar .button{min-height:40px;padding:4px 8px;display:flex;align-items:center;gap:4px;font-size:11px}
 .fleet-emotions-toolbar img{width:28px;height:28px;object-fit:contain}
-.fleet-emotions-menu{width:264px;max-width:100%;padding:8px;background:#102838;border:1px solid #416070;border-radius:10px}
+.fleet-emotions-menu{position:absolute;z-index:30;top:48px;right:0;width:264px;max-width:calc(100vw - 40px);padding:8px;background:#102838;border:1px solid #416070;border-radius:10px;box-shadow:0 12px 30px #0008}
 .fleet-emotions-menu label{display:flex;align-items:center;gap:6px;font-size:12px}
 .fleet-emotions-menu small{display:block;font-size:11px;color:#b3cbd2;margin:6px 0}
 .fleet-emotions-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}

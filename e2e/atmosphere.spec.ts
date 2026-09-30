@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { botTarget, Shot, LETTERS, STORAGE_KEY } from '../src/game';
+import {sunkPerimeter} from '../src/sunkPerimeter';
 test.beforeEach(async ({ context }) => { await context.addInitScript(() => localStorage.setItem('fleet:entry', 'guest')); });
 
 async function metrics(page: Page) {
@@ -83,7 +84,10 @@ test('full normal match using only public shot information', async ({ page }) =>
       return { phase: g.phase, shots: g.bot.shots as Shot[] };
     }, STORAGE_KEY);
     if (visible.phase === 'finished') break;
-    const c = botTarget(visible.shots);
+    // The UI deliberately disables publicly known water around sunk ships.
+    // The test captain must avoid it too; these hints are NOT written as shots.
+    const unavailable=sunkPerimeter(visible.shots).map(c=>({...c,result:'miss' as const}));
+    const c = botTarget([...visible.shots,...unavailable]);
     await page.getByRole('button', { name: `Поле противника ${LETTERS[c.x]}${c.y + 1}`, exact: true }).click();
   }
   await expect(page.locator('.victory-card')).toBeVisible();

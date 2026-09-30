@@ -1,6 +1,6 @@
 let context:AudioContext|undefined;
 export function sonarPing(card='sonar'){
-  if(localStorage.getItem('fleet:muted')==='true')return;
+  try{if(localStorage.getItem('fleet:muted')==='true'||JSON.parse(localStorage.getItem('fleet:audio:v2')||'{}').battle===false)return;}catch{/* Use defaults if preferences are unavailable. */}
   try{context ||= new AudioContext();void context.resume();const oscillator=context.createOscillator(),gain=context.createGain();
     const frequency=card==='kraken'?85:card==='bomb'?140:card==='chance'?620:card==='signal'?980:780;
     oscillator.type=card==='kraken'||card==='bomb'?'triangle':'sine';

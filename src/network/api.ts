@@ -1,10 +1,13 @@
 import { supabase } from '../account/client';
 import type { Board } from '../game';
+import type { AbilityEvent } from '../abilities';
+import type { Wallet } from '../shop/economy';
 export type Room = {
   id:string; invite:string|null; round:number; revision:number;
   status:'waiting'|'setup'|'battle'|'finished'; myTurn:boolean|null; won:boolean|null;
   ready:boolean; opponentReady:boolean; opponent:string|null; own:Board; enemy:Board;
   rematchRequested:boolean; opponentRematch:boolean;
+  bonus?:boolean; revealed?:number[]; ability?:AbilityEvent; opponentAbility?:AbilityEvent; arsenal?:Wallet;
 };
 export type RankRow = {id:string;nickname:string;wins:number;losses:number;games:number;rating:number;position:number};
 export type Ranking = {rows:RankRow[];me:RankRow|null};
@@ -32,6 +35,11 @@ export function errorText(error:unknown) {
     'Round changed':'Уже начался новый раунд. Обновляем поле.',
     'Fleet already locked':'Ваша расстановка уже подтверждена.', 'Not in deployment':'Расстановка уже завершена.',
     'Match not finished':'Дождитесь окончания партии.',
+    'Card not owned':'Эта карта закончилась. Откройте магазин.',
+    'Invalid area':'Область выходит за край поля. Карта не потрачена.',
+    'No target':'Нет доступной цели для карты. Она не потрачена.',
+    'Bonus already active':'Второй шанс уже активен.',
+    'Request already used':'Операция уже обработана. Обновляем инвентарь.',
   };
-  return known[message]||'Нет подтверждения сервера. Проверьте связь, вход и миграцию 004. При восстановлении связи запрос будет повторён безопасно.';
+  return known[message]||'Нет подтверждения сервера. Восстанавливаем связь; повтор запроса безопасен.';
 }

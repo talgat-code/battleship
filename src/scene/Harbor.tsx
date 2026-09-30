@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Vessel from './Vessel';
+import HarborDetails from './HarborDetails';
 import { BEACON_SOURCE, BEACON_TILT, beaconDirection, type BeamState } from './beacon';
 
 // Decorative coordinates only; this scene never receives the game state.
@@ -62,7 +63,7 @@ function terrainHeight(x: number, z: number, seed: number) {
   const contour=1+.1*Math.sin(angle*3+seed)+.07*Math.cos(angle*5-seed);
   const r=Math.hypot(x,z)/contour;
   const dome=Math.max(0,1-r*r);
-  return Math.pow(dome,.66)*(.86+.07*Math.sin(x*4+seed)*Math.cos(z*3)) + (r<.74 ? .06 : 0) + (r<.46 ? .06 : 0);
+  return Math.pow(dome,.7)*(.86+.12*Math.sin(x*3+seed)*Math.cos(z*2)) + (r<.81?.085:0) + (r<.55?.1:0) + (r<.28?.045:0);
 }
 function Coast({ at, scale, seed, distant = false, mobile, moving }: { at:[number,number,number];scale:[number,number,number];seed:number;distant?:boolean;mobile:boolean;moving:boolean }) {
   const geometry=useMemo(()=>{
@@ -71,9 +72,9 @@ function Coast({ at, scale, seed, distant = false, mobile, moving }: { at:[numbe
     for(let i=0;i<p.count;i++) {
       const x=p.getX(i), z=p.getY(i), h=terrainHeight(x,z,seed);
       p.setXYZ(i,x,h > 0 ? h : -.15,z);
-      const layer=Math.sin(h*38+x*1.2)*.5+.5;
+      const layer=Math.sin(h*48+x*3+z)*.5+.5;
       const crack=Math.pow(Math.max(0,Math.cos(x*15+z*3+seed)),32)*.16;
-      color.set(distant?'#72879e':'#466168').multiplyScalar(.65+layer*.25+h*.23-crack);
+      color.set(distant?'#72879e':layer>.78?'#7b8b89':'#425d68').multiplyScalar(.65+layer*.25+h*.23-crack);
       colors.push(color.r,color.g,color.b);
     }
     g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();return g;
@@ -93,7 +94,7 @@ function Trees({ seed,mobile,scale }: { seed:number;mobile:boolean;scale:[number
     const o=new THREE.Object3D();
     for(let i=0;i<count;i++) {
       const a=i*2.399+seed,r=.22+(i%5)*.065,x=Math.cos(a)*r,z=Math.sin(a)*r;
-      const h=.52+(Math.sin(i*7+seed)+1)*.25;
+      const h=.72+(Math.sin(i*7+seed)+1)*.35;
       o.position.set(x,terrainHeight(x,z,seed)+h*.42/scale[1],z);o.rotation.set(.025*Math.sin(i),0,.04*Math.cos(i*3));o.scale.set(.055/scale[0],h/scale[1],.055/scale[2]);o.updateMatrix();trunks.current?.setMatrixAt(i,o.matrix);
       for(let j=0;j<3;j++) {o.position.y=terrainHeight(x,z,seed)+(h*.5+j*h*.21)/scale[1];o.scale.set((.28-j*.055)/scale[0],h*.65/scale[1],(.28-j*.055)/scale[2]);o.updateMatrix();crowns.current?.setMatrixAt(i*3+j,o.matrix);}
     }
@@ -111,7 +112,7 @@ function Beacon({ beam,mobile }: {beam:BeamState;mobile:boolean}) {
     if(spot.current)spot.current.distance=length;
   });
   const target=useMemo(()=>{const o=new THREE.Object3D();o.position.set(30,0,0);return o;},[]);
-  return <group position={[-23,2.25,-12]}>
+  return <group position={[BEACON_SOURCE.x,BEACON_SOURCE.y-3.2,BEACON_SOURCE.z]}>
     <mesh position={[0,.1,0]}><cylinderGeometry args={[.8,.95,.3,12]} /><meshStandardMaterial color="#778182" /></mesh>
     <mesh position={[0,1.4,0]}><cylinderGeometry args={[.34,.56,2.6,20]} /><meshStandardMaterial color="#e2d6bb" roughness={.75} /></mesh>
     <mesh position={[0,1.8,0]}><cylinderGeometry args={[.4,.43,.35,20]} /><meshStandardMaterial color="#805c52" /></mesh>
@@ -139,11 +140,11 @@ function Cruiser({moving,mobile}:{moving:boolean;mobile:boolean}) {
     uniforms.time.value=t;
   });
   return <group ref={group} name="harbor-cruiser" scale={mobile?.38:.65}>
-    <group position={[-.5,0,-.5]}><Vessel ship={{id:0,length:3,cells:[{x:4,y:5},{x:5,y:5},{x:6,y:5}]}} sunk={false} moving={false} /></group>
+    <group position={[-.5,0,-.5]}><Vessel ship={{id:0,length:3,cells:[{x:4,y:5},{x:5,y:5},{x:6,y:5}]}} sunk={false} moving={false} detailed={!mobile} lite={mobile}/></group>
     <mesh position={[3,.015,0]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[6,2.5]} /><shaderMaterial transparent depthWrite={false} uniforms={uniforms} vertexShader={vertex} fragmentShader={`varying vec2 v;uniform float time;void main(){float edge=abs(v.y-.5);float wing=exp(-pow((edge-v.x*.32)/.04,2.));float churn=pow(.5+.5*sin(v.x*60.-time*3.+v.y*24.),3.);float a=(wing*.35+exp(-edge*14.)*churn*.25)*pow(1.-v.x,1.6);gl_FragColor=vec4(.67,.91,.91,a);}`} /></mesh>
   </group>;
 }
-export default function Harbor({moving,mobile}:{moving:boolean;mobile:boolean}) {
+export default function Harbor({moving,mobile,quiet=false}:{moving:boolean;mobile:boolean;quiet?:boolean}) {
   const {camera,invalidate,gl,scene}=useThree();
   const frames=useRef(0);
   const beam=useMemo<BeamState>(()=>({angle:-1,direction:beaconDirection(-1),length:{value:30}}),[]);
@@ -163,14 +164,14 @@ export default function Harbor({moving,mobile}:{moving:boolean;mobile:boolean}) 
     beam.length.value=Math.max(.2,length);
   },-1);
   useEffect(()=>{camera.lookAt(0,-5,-18);invalidate();},[camera,invalidate]);
-  useEffect(()=>{if(!moving)return;const id=setInterval(()=>{if(!document.hidden)invalidate();},1000/(mobile?24:30));return()=>clearInterval(id);},[moving,mobile,invalidate]);
+  useEffect(()=>{if(!moving)return;const id=setInterval(()=>{if(!document.hidden)invalidate();},1000/(quiet?15:mobile?24:30));return()=>clearInterval(id);},[moving,mobile,quiet,invalidate]);
   useFrame(({clock})=>{if(new URLSearchParams(location.search).has('diagnostics')){const d=gl.domElement.dataset;d.frames=String(++frames.current);d.time=String(moving?clock.elapsedTime:0);d.beacon=String(scene.getObjectByName('harbor-beacon')?.rotation.y);d.shipX=String(scene.getObjectByName('harbor-cruiser')?.position.x);d.drawCalls=String(gl.info.render.calls);d.triangles=String(gl.info.render.triangles);}});
   return <>
     <fog attach="fog" args={['#506781',40,115]} />
     <hemisphereLight args={['#99b6d8','#17283d',1.4]} />
     <directionalLight position={[22,20,-35]} color="#a2c9ff" intensity={2.2} />
     <directionalLight position={[-25,9,2]} color="#f1bb82" intensity={.65} />
-    <Sea moving={moving} mobile={mobile} beam={beam} />
+    <Sea moving={moving} mobile={mobile||quiet} beam={beam} />
     <Moon mobile={mobile} />
     <Coast at={[-28,0,-68]} scale={[32,10,12]} seed={2} distant mobile={mobile} moving={moving}/>
     <Coast at={[27,0,-76]} scale={[29,13,14]} seed={6} distant mobile={mobile} moving={moving}/>
@@ -178,6 +179,7 @@ export default function Harbor({moving,mobile}:{moving:boolean;mobile:boolean}) 
     <Coast at={[30,0,-44]} scale={[19,12,9]} seed={4} distant mobile={mobile} moving={moving}/>
     <Coast at={[-18,0,-14]} scale={[8,5,6]} seed={12} mobile={mobile} moving={moving}/>
     <Coast at={[21,0,-20]} scale={[8,6.5,8]} seed={18} mobile={mobile} moving={moving}/>
-    <Beacon beam={beam} mobile={mobile}/><Cruiser moving={moving} mobile={mobile}/>
+    <Beacon beam={beam} mobile={mobile}/>{!quiet&&<Cruiser moving={moving} mobile={mobile}/>}
+    <HarborDetails moving={moving} mobile={mobile} quiet={quiet}/>
   </>;
 }

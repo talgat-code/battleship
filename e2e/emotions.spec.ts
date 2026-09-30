@@ -9,12 +9,15 @@ for(const width of [1440,390])test(`overlay reactions and static audio controls 
     localStorage.setItem('fleet:entry','guest');
     if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(game));
     const calls:string[]=[];(window as any).audioCalls=calls;
+    const original=AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start=function(...args:Parameters<typeof original>){calls.push('/emotions/decoded');return original.apply(this,args);};
     HTMLMediaElement.prototype.play=function(){calls.push(this.src);return Promise.resolve();};
     Object.defineProperty(window,'speechSynthesis',{value:{cancel:()=>calls.push('cancel'),getVoices:()=>[],speak:()=>{throw Error('Speech synthesis is forbidden');}}});
   },{game,key:STORAGE_KEY});
   await page.goto('/');
   const toggle=page.getByRole('button',{name:'Эмоции',exact:true});
   await toggle.click();await expect(page.locator('.fleet-emotions-picker button')).toHaveCount(6);
+  await expect.poll(()=>page.locator('.fleet-emotions-picker img').evaluateAll(images=>images.every(i=>(i as HTMLImageElement).naturalWidth>0))).toBe(true);
   const bounds=await page.locator('.fleet-emotions-picker img').evaluateAll(images=>images.map(i=>({loaded:(i as HTMLImageElement).naturalWidth,w:i.getBoundingClientRect().width,h:i.getBoundingClientRect().height})));
   expect(bounds.every(b=>b.loaded>0&&b.w===56&&b.h===56)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -25,6 +28,7 @@ for(const width of [1440,390])test(`overlay reactions and static audio controls 
   await page.clock.install();
   for(const emotion of emotions){
     await toggle.click();await page.locator('.fleet-emotions-picker').getByRole('button',{name:emotion.name,exact:true}).click();
+    await expect.poll(()=>page.evaluate(()=>(window as any).audioCalls.filter((x:string)=>x.includes('/emotions/')).length)).toBe(emotions.indexOf(emotion)+1);
     await expect(page.locator('.fleet-emotions-reaction')).toContainText(emotion.phrases.ru);
     await expect(page.locator('.cell-grid > .fleet-emotions-reaction')).toHaveCount(1);
     expect(await page.locator('.fleet-emotions-reaction').evaluate(e=>getComputedStyle(e).pointerEvents)).toBe('none');

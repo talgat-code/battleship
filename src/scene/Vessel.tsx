@@ -65,7 +65,7 @@ export default function Vessel({ ship, sunk, moving, detailed = false, lite = fa
   const z = ship.cells.reduce((sum, c) => sum + c.y, 0) / n - 4.5;
   useLayoutEffect(() => {
     if (structure.current) return batchVessel(structure.current);
-  }, [n, sunk, detailed]);
+  }, [n, sunk, detailed, lite]);
   useLayoutEffect(()=>{if(placement.current)placement.current.rotation.y=vertical?-Math.PI/2:0;},[]);
   useFrame(({ clock }) => {
     if(placement.current){const target=vertical?-Math.PI/2:0;placement.current.rotation.y=moving?THREE.MathUtils.lerp(placement.current.rotation.y,target,.22):target;}
@@ -104,6 +104,10 @@ export default function Vessel({ ship, sunk, moving, detailed = false, lite = fa
       <Part at={[-.25, .56, 0]} size={[.02, .07, .31]} color="#14798a" />
       {[-.193, .193].map(z => <Part key={z} at={[-.06, .56, z]} size={[.26, .07, .012]} color="#167c91" />)}
       <Radar x={.06} y={.64} />
+      {[-1,1].map(side=><group key={`launch-${side}`} position={[.3,.32,side*(width-.09)]}>
+        <mesh rotation={[0,0,Math.PI/2]}><capsuleGeometry args={[.045,n===3?.25:.16,2,6]}/><meshStandardMaterial color="#d4b281"/></mesh>
+        <Part at={[0,.05,0]} size={[.12,.035,.06]} color="#3e5964"/>
+      </group>)}
       <Turret x={-n / 2 + .55} dual={n === 3} />
       <Part at={[-.055, .674, 0]} size={[.45, .055, .41]} color="#647e8a" />
       <Part at={[n === 3 ? .59 : .48, .47, 0]} size={[.22, .32, .26]} color="#3e5663" />
@@ -112,6 +116,14 @@ export default function Vessel({ ship, sunk, moving, detailed = false, lite = fa
         <Part at={[.99, .29, 0]} size={[.54, .035, .52]} color="#5f8392" />
         <Part at={[.99, .315, 0]} size={[.25, .008, .03]} color="#f0d690" />
         {[-.13, .13].map(z => <Part key={z} at={[.99, .315, z]} size={[.03, .008, .26]} color="#f0d690" />)}
+        {detailed&&!lite&&<group position={[1.03,.39,0]}>
+          <mesh scale={[1.5,.7,.7]}><sphereGeometry args={[.095,8,6]}/><meshStandardMaterial color="#b8cbd0"/></mesh>
+          <Part at={[-.085,.025,0]} size={[.07,.065,.085]} color="#216277"/>
+          <Part at={[.15,.015,0]} size={[.2,.035,.035]} color="#829ea9"/>
+          <Part at={[.23,.055,0]} size={[.04,.09,.02]} color="#d4d8b9"/>
+          <Part at={[0,.115,0]} size={[.4,.015,.025]} color="#263e51" rotation={[0,.5,0]}/>
+          <Part at={[0,.115,0]} size={[.025,.015,.4]} color="#263e51" rotation={[0,.5,0]}/>
+        </group>}
         {[-.18, 0, .18].map(z => <Part key={z} at={[-.57, .38, z]} size={[.23, .15, .1]} color="#394f5e" rotation={[0, 0, -.25]} />)}
       </> : <Part at={[.7, .31, 0]} size={[.18, .1, .31]} color="#e4ad6d" />}
     </>}

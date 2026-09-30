@@ -5,7 +5,8 @@ test('confirmed remote and local IDs use the same overlay; receiver mute is resp
   await page.setViewportSize({width:390,height:844});
   await page.addInitScript(()=>{
     (window as any).reactionSounds=[];
-    HTMLMediaElement.prototype.play=function(){if(this.src.includes('/emotions/'))(window as any).reactionSounds.push(this.src);return Promise.resolve();};
+    const original=AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start=function(...args:Parameters<typeof original>){(window as any).reactionSounds.push('decoded');return original.apply(this,args);};
   });
   let event:unknown=null;const sent:any[]=[];
   await page.route('**/rest/v1/rpc/fleet_emote',async route=>{
@@ -23,7 +24,7 @@ test('confirmed remote and local IDs use the same overlay; receiver mute is resp
   await page.getByRole('button',{name:'Включить звук',exact:true}).click();
   event={event:'second',emotion:'salute',sent_at:new Date().toISOString()};
   await expect(page.locator('.fleet-emotions-reaction')).toContainText('Привет, капитан!');
-  expect(await page.evaluate(()=>(window as any).reactionSounds)).toHaveLength(1);
+  await expect.poll(()=>page.evaluate(()=>(window as any).reactionSounds.length)).toBe(1);
   await page.locator('.board-container').screenshot({path:'artifacts/emotion-opponent.png'});
   await page.getByRole('button',{name:'Эмоции',exact:true}).click();
   await page.getByRole('button',{name:'Хорошая игра',exact:true}).click();

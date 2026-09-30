@@ -1,0 +1,10 @@
+import {createRoot} from 'react-dom/client';
+import Duel from '../../src/network/Duel';
+import {AudioProvider,SoundButton} from '../../src/Audio';
+import {I18n} from '../../src/i18n';
+import '../../src/style.css';
+import '../../src/twilight.css';
+import '../../src/world.css';
+import '../../src/shop/shop.css';
+import '../../src/network/network.css';
+createRoot(document.getElementById('root')!).render(<I18n><AudioProvider><SoundButton/><Duel userId="00000000-0000-0000-0000-000000000001" onLeaders={()=>{}} onShop={()=>{}}/></AudioProvider></I18n>);
