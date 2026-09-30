@@ -11,7 +11,11 @@ test('archipelago: animated anchors, inspection crew and projected corner shots'
   positions.forEach(([x, y], id) => { ships = place(ships, id, { x, y }, false); });
   const game: Game = { ...freshGame(), phase: 'battle', player: { ships, shots: [] }, bot: { ships, shots: [] } };
   await page.goto('/?diagnostics=1');
-  await page.evaluate(({ key, game }) => localStorage.setItem(key, JSON.stringify(game)), { key: STORAGE_KEY, game });
+  await page.evaluate(({ key, game }) => {
+    localStorage.setItem(key, JSON.stringify(game));
+    const walletKey='fleet:wallet:v1:guest',wallet=JSON.parse(localStorage.getItem(walletKey)||'null');
+    if(wallet){wallet.game=game;localStorage.setItem(walletKey,JSON.stringify(wallet));}
+  }, { key: STORAGE_KEY, game });
   await page.reload();
   const ally = page.locator('.ally-card');
   const enemy = page.locator('.enemy-card');

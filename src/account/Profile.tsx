@@ -1,3 +1,4 @@
+import { tr, t, dateLocale } from '../i18n';
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './client';
@@ -28,12 +29,12 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
     finally { setBusy(false); }
   }
   useEffect(() => { void load(); }, [user.id]);
-  return <section className="entry-card profile-card"><small>ЛИЧНОЕ ДЕЛО</small><h1>Профиль командира</h1><p>{user.email}</p><p>На службе с {new Date(user.created_at).toLocaleDateString('ru-RU')}</p>
+  return <section className="entry-card profile-card"><small>{t("ЛИЧНОЕ ДЕЛО")}</small><h1>{t("Профиль командира")}</h1><p>{tr(user.email)}</p><p>{t("На службе с ")}{tr(new Date(user.created_at).toLocaleDateString(dateLocale()))}</p>
     <form onSubmit={async e => { e.preventDefault(); setBusy(true); try { const { error } = await supabase!.from('profiles').update({ nickname: name.trim() }).eq('id', user.id); if (error) throw error; setMessage('Имя сохранено.'); } catch { setMessage('Не удалось сохранить имя. Попробуйте ещё раз.'); } finally { setBusy(false); } }}>
-      <label>Позывной<input value={name} onChange={e => setName(e.target.value)} disabled={busy || !loaded} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy || !loaded}>Сохранить имя</button>
-    </form><p aria-live="polite">{busy ? 'Загрузка…' : message}</p>
-    <div className="profile-score"><span>Сыграно <b>{loaded ? counts[0]+counts[1] : '—'}</b></span><span>Победы <b>{loaded ? counts[0] : '—'}</b></span><span>Поражения <b>{loaded ? counts[1] : '—'}</b></span></div>
-    <h2>Последние 100 партий против бота</h2><ul className="match-history">{rows.map(r => <li key={r.id}><strong>{r.outcome === 'win' ? 'Победа' : 'Поражение'}</strong><time>{new Date(r.finished_at).toLocaleString('ru-RU')}</time><span>{r.shots} выстрелов</span></li>)}</ul>{loaded && !rows.length && !busy && <p>Завершённых партий пока нет. Начните первую операцию против бота.</p>}
-    <div className="entry-actions"><button className="button primary" onClick={back}>Вернуться к игре</button><button className="button secondary" onClick={() => void load()} disabled={busy}>Обновить профиль</button><button className="button secondary" disabled={busy} onClick={async () => { setBusy(true); try { await logout(); } catch { setMessage('Не удалось выйти. Проверьте подключение и повторите.'); } finally { setBusy(false); } }}>Выйти из аккаунта</button></div>
+      <label>{t("Позывной")}<input value={name} onChange={e => setName(e.target.value)} disabled={busy || !loaded} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy || !loaded}>{t("Сохранить имя")}</button>
+    </form><p aria-live="polite">{tr(busy ? 'Загрузка…' : message)}</p>
+    <div className="profile-score"><span>{t("Сыграно ")}<b>{tr(loaded ? counts[0]+counts[1] : '—')}</b></span><span>{t("Победы ")}<b>{tr(loaded ? counts[0] : '—')}</b></span><span>{t("Поражения ")}<b>{tr(loaded ? counts[1] : '—')}</b></span></div>
+    <h2>{t("Последние 100 партий против бота")}</h2><ul className="match-history">{tr(rows.map(r => <li key={r.id}><strong>{tr(r.outcome === 'win' ? 'Победа' : 'Поражение')}</strong><time>{tr(new Date(r.finished_at).toLocaleString(dateLocale()))}</time><span>{tr(r.shots)}{t(" выстрелов")}</span></li>))}</ul>{tr(loaded && !rows.length && !busy && <p>{t("Завершённых партий пока нет. Начните первую операцию против бота.")}</p>)}
+    <div className="entry-actions"><button className="button primary" onClick={back}>{t("Вернуться к игре")}</button><button className="button secondary" onClick={() => void load()} disabled={busy}>{t("Обновить профиль")}</button><button className="button secondary" disabled={busy} onClick={async () => { setBusy(true); try { await logout(); } catch { setMessage('Не удалось выйти. Проверьте подключение и повторите.'); } finally { setBusy(false); } }}>{t("Выйти из аккаунта")}</button></div>
   </section>;
 }

@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { I18n } from './i18n';
+import './shop/shop.css';
 import Entry from './account/Entry';
 import { AudioProvider } from './Audio';
 import './style.css';
 import './twilight.css';
 import './world.css';
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AudioProvider><Entry /></AudioProvider></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><I18n><AudioProvider><Entry /></AudioProvider></I18n></React.StrictMode>);

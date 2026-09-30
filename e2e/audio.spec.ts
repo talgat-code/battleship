@@ -22,7 +22,11 @@ test('real audio starts on gesture, mutes, persists and fires only for a new sho
   await expect.poll(() => ambient.evaluate((e: HTMLAudioElement) => e.currentTime)).toBeGreaterThan(0);
   const g = freshGame(); g.player.ships = randomFleet(); g.phase = 'battle';
   const target = g.bot.ships.find(s => s.length === 4)!.cells[0];
-  await page.evaluate(({ key, game }) => localStorage.setItem(key, JSON.stringify(game)), { key: STORAGE_KEY, game: g });
+  await page.evaluate(({ key, game }) => {
+    localStorage.setItem(key,JSON.stringify(game));
+    const walletKey='fleet:wallet:v1:guest',wallet=JSON.parse(localStorage.getItem(walletKey)||'null');
+    if(wallet){wallet.game=game;localStorage.setItem(walletKey,JSON.stringify(wallet));}
+  }, { key: STORAGE_KEY, game: g });
   await page.reload();
   expect(await page.evaluate(() => (window as any).cannonPlays)).toBe(0);
   await page.getByRole('button', { name: `Поле противника ${LETTERS[target.x]}${target.y + 1}`, exact: true }).click();

@@ -41,6 +41,8 @@ function Airplane({ x, z }: { x: number; z: number }) {
 // Each hull is contained within length × 1 cells, including bevels and details.
 export default function Vessel({ ship, sunk, moving, detailed = false, lite = false }: { ship: Ship; sunk: boolean; moving: boolean; detailed?: boolean; lite?: boolean }) {
   const n = ship.length;
+  const placement=useRef<THREE.Group>(null);
+  const sinkStart=useRef<number|null>(null);
   const rocking = useRef<THREE.Group>(null);
   const structure = useRef<THREE.Group>(null);
   const width = n === 4 ? .4 : n === 1 ? .27 : n === 2 ? .31 : .36;
@@ -64,13 +66,17 @@ export default function Vessel({ ship, sunk, moving, detailed = false, lite = fa
   useLayoutEffect(() => {
     if (structure.current) return batchVessel(structure.current);
   }, [n, sunk, detailed]);
+  useLayoutEffect(()=>{if(placement.current)placement.current.rotation.y=vertical?-Math.PI/2:0;},[]);
   useFrame(({ clock }) => {
+    if(placement.current){const target=vertical?-Math.PI/2:0;placement.current.rotation.y=moving?THREE.MathUtils.lerp(placement.current.rotation.y,target,.22):target;}
     if (!rocking.current) return;
     const pose = vesselPose(x, z, moving ? clock.elapsedTime : 0, ship.id);
-    rocking.current.position.y = sunk ? -.19 : moving ? pose.y : .035;
+    if(sunk&&sinkStart.current===null)sinkStart.current=clock.elapsedTime;
+    const sinking=moving&&sunk?Math.min(1,(clock.elapsedTime-(sinkStart.current||0))/1.4):1;
+    rocking.current.position.y = sunk ? .035-.225*sinking : moving ? pose.y : .035;
     rocking.current.rotation.set(sunk ? .035 : moving ? pose.roll : 0, 0, sunk ? 0 : moving ? pose.pitch : 0);
   });
-  return <group name={`vessel-${ship.id}`} position={[x, 0, z]} rotation={[0, vertical ? -Math.PI / 2 : 0, 0]}>
+  return <group ref={placement} name={`vessel-${ship.id}`} position={[x, 0, z]}>
     {!sunk && <Wake length={n} moving={moving} phase={ship.id * .7} />}
     <group ref={rocking} name="vessel-motion" position={[0, sunk ? -.19 : .035, 0]}>
     <group ref={structure}>

@@ -14,7 +14,11 @@ function fixture(): Game {
 }
 async function install(page: Page, game: Game) {
   await page.goto('/');
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: STORAGE_KEY, value: JSON.stringify(game) });
+  await page.evaluate(({ key, value }) => {
+    localStorage.setItem(key,value);
+    const walletKey='fleet:wallet:v1:guest',wallet=JSON.parse(localStorage.getItem(walletKey)||'null');
+    if(wallet){wallet.game=JSON.parse(value);localStorage.setItem(walletKey,JSON.stringify(wallet));}
+  }, { key: STORAGE_KEY, value: JSON.stringify(game) });
   await page.reload();
 }
 const cell = (page: Page, side: string, x: number, y: number) => page.getByRole('button', { name: `${side} ${LETTERS[x]}${y + 1}`, exact: true });

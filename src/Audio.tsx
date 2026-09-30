@@ -1,3 +1,4 @@
+import { tr, t } from './i18n';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
@@ -48,12 +49,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   return <Sound.Provider value={{ muted, toggle, shoot }}>
     <audio ref={ambient} data-sound="ambient" src="/audio/sea-gulls.mp3" loop preload="none" />
     <audio ref={cannon} data-sound="cannon" src="/audio/cannon.mp3" preload="auto" />
-    {children}
+    {tr(children)}
   </Sound.Provider>;
 }
 export function SoundButton() {
   const { muted, toggle } = useContext(Sound);
-  return <button className="icon-button" data-audio-toggle aria-label={muted ? 'Включить звук' : 'Выключить звук'} title={muted ? 'Включить звук' : 'Выключить звук'} aria-pressed={!muted} onClick={toggle}>{muted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>;
+  return <button className="icon-button" data-audio-toggle aria-label={tr(muted ? 'Включить звук' : 'Выключить звук')} title={tr(muted ? 'Включить звук' : 'Выключить звук')} aria-pressed={!muted} onClick={toggle}>{tr(muted ? <VolumeX size={20} /> : <Volume2 size={20} />)}</button>;
 }
 export function useShotSound(shots: number) {
   const { shoot } = useContext(Sound);
