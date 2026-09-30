@@ -1,5 +1,10 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+Играть с ботом|Ботпен ойнау|Play with bot
+Играть с другом|Доспен ойнау|Play with friend
+Таблица лидеров|Көшбасшылар кестесі|Leaderboard
+С другом — по ссылке, после входа. Классические правила без карт способностей.|Доспен — кіргеннен кейін сілтеме арқылы. Қабілет карталарынсыз классикалық ережелер.|Invite a friend after signing in. Classic rules without ability cards.
+ФЛОТ / СЕКТОР 10 · С ботом или с другом|ФЛОТ / СЕКТОР 10 · Ботпен немесе доспен|FLEET / SECTOR 10 · With a bot or a friend
 Язык|Тіл|Language
 Карты способностей|Қабілет карталары|Ability cards
 АРСЕНАЛ КОМАНДИРА|КОМАНДИР АРСЕНАЛЫ|COMMANDER'S ARSENAL

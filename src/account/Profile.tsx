@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './client';
 import { flushResults } from './results';
 import type { Result } from './storage';
+import { ranking,type RankRow } from '../network/api';
 export default function Profile({ user, back, logout }: { user: User; back: () => void; logout: () => Promise<void> }) {
   const [name, setName] = useState('');
   const [rows, setRows] = useState<Result[]>([]);
@@ -11,7 +12,10 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
   const [busy, setBusy] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState('');
+  const [network,setNetwork]=useState<RankRow|null>(null);
+  const [networkStatus,setNetworkStatus]=useState('Загрузка сетевой статистики…');
   async function load() {
+    void ranking().then(r=>{setNetwork(r.me);setNetworkStatus(r.me?'':'Сетевых матчей пока нет.');}).catch(()=>setNetworkStatus('Сетевая статистика недоступна. Проверьте миграцию 004 и подключение.'));
     setBusy(true); setMessage('');
     try {
       await flushResults(user.id);
@@ -33,6 +37,7 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
     <form onSubmit={async e => { e.preventDefault(); setBusy(true); try { const { error } = await supabase!.from('profiles').update({ nickname: name.trim() }).eq('id', user.id); if (error) throw error; setMessage('Имя сохранено.'); } catch { setMessage('Не удалось сохранить имя. Попробуйте ещё раз.'); } finally { setBusy(false); } }}>
       <label>{t("Позывной")}<input value={name} onChange={e => setName(e.target.value)} disabled={busy || !loaded} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy || !loaded}>{t("Сохранить имя")}</button>
     </form><p aria-live="polite">{tr(busy ? 'Загрузка…' : message)}</p>
+    <section className="network-profile"><h2>Матчи с другом</h2><p>{network?`Место ${network.position} · Рейтинг ${network.rating} · Игр ${network.games} · Побед ${network.wins} · Поражений ${network.losses}`:networkStatus}</p></section><h2>Матчи с ботом</h2>
     <div className="profile-score"><span>{t("Сыграно ")}<b>{tr(loaded ? counts[0]+counts[1] : '—')}</b></span><span>{t("Победы ")}<b>{tr(loaded ? counts[0] : '—')}</b></span><span>{t("Поражения ")}<b>{tr(loaded ? counts[1] : '—')}</b></span></div>
     <h2>{t("Последние 100 партий против бота")}</h2><ul className="match-history">{tr(rows.map(r => <li key={r.id}><strong>{tr(r.outcome === 'win' ? 'Победа' : 'Поражение')}</strong><time>{tr(new Date(r.finished_at).toLocaleString(dateLocale()))}</time><span>{tr(r.shots)}{t(" выстрелов")}</span></li>))}</ul>{tr(loaded && !rows.length && !busy && <p>{t("Завершённых партий пока нет. Начните первую операцию против бота.")}</p>)}
     <div className="entry-actions"><button className="button primary" onClick={back}>{t("Вернуться к игре")}</button><button className="button secondary" onClick={() => void load()} disabled={busy}>{t("Обновить профиль")}</button><button className="button secondary" disabled={busy} onClick={async () => { setBusy(true); try { await logout(); } catch { setMessage('Не удалось выйти. Проверьте подключение и повторите.'); } finally { setBusy(false); } }}>{t("Выйти из аккаунта")}</button></div>

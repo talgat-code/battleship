@@ -8,14 +8,18 @@ import World from '../scene/World';
 import { SoundButton } from '../Audio';
 import { supabase } from './client';
 import Profile from './Profile';
+import Duel from '../network/Duel';
+import Leaderboard from '../network/Leaderboard';
+import '../network/network.css';
 
 export default function Entry() {
   const {language,setLanguage}=useLanguage();
   const languageUser=useRef<string|null>(null);
   const [user, setUser] = useState<User | null>(null);
   const activeUser = useRef<string | null>(null);
+  const friendIntent=useRef(new URLSearchParams(location.search).has('invite')||new URLSearchParams(location.search).has('room'));
   const [loading, setLoading] = useState(!!supabase);
-  const [view, setView] = useState<'home' | 'login' | 'signup' | 'game' | 'profile' | 'shop'>(() => { try { return localStorage.getItem('fleet:entry') === 'guest' ? 'game' : 'home'; } catch { return 'home'; } });
+  const [view, setView] = useState<'home' | 'login' | 'signup' | 'game' | 'profile' | 'shop' | 'friend' | 'leaders'>(() => { if(friendIntent.current)return 'friend'; try { return localStorage.getItem('fleet:entry') === 'guest' ? 'game' : 'home'; } catch { return 'home'; } });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -46,7 +50,7 @@ export default function Entry() {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!live) return;
       setUser(session?.user || null); setLoading(false); clearTimeout(timer);
-      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) { if(event === 'INITIAL_SESSION' || activeUser.current !== session.user.id) setView('profile'); setPassword(''); }
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) { if(event === 'INITIAL_SESSION' || activeUser.current !== session.user.id) setView(friendIntent.current?'friend':'profile'); setPassword(''); }
       activeUser.current = session?.user.id || null;
       if (event === 'SIGNED_OUT') setView('home');
     });
@@ -54,12 +58,13 @@ export default function Entry() {
   }, []);
   function guest() { try { localStorage.setItem('fleet:entry', 'guest'); } catch { /* In-memory guest remains usable. */ } setView('game'); setMessage(''); }
   function navigate(next: typeof view) { setView(next); setMessage(''); setPassword(''); }
+  function friend(){friendIntent.current=true;navigate('friend');}
   async function submit(e: React.FormEvent) {
     e.preventDefault(); if (!supabase || busy) return;
     setBusy(true); setMessage('');
     try {
       if (view === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { nickname: nickname.trim() }, emailRedirectTo: window.location.origin + window.location.pathname } });
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { nickname: nickname.trim() }, emailRedirectTo: window.location.origin + window.location.pathname + window.location.search } });
         if (error) throw error;
         if (!data.session) setMessage('Проверьте почту и подтвердите адрес по ссылке. Если аккаунт уже существует, воспользуйтесь входом.');
       } else {
@@ -72,16 +77,21 @@ export default function Entry() {
     } finally { setBusy(false); }
   }
   if (!loading && view === 'game') return <App key={user?.id || 'guest'} userId={user?.id} onShop={() => navigate('shop')} onAccount={() => navigate(user ? 'profile' : 'home')} accountLabel={user ? 'Профиль' : 'Гость · Войти'} />;
-  return <div className="app-shell entry-shell"><World moving={!loading} showcase /><header className="topbar"><a className="brand" href="./">{t("⚓ ФЛОТ / СЕКТОР 10")}</a><div className="header-right"><span className="entry-header-label">{t("СУМЕРЕЧНЫЙ АРХИПЕЛАГ")}</span><LanguageSwitch /><button className="button secondary" onClick={() => navigate('shop')}>{t("Магазин")}</button><SoundButton /></div></header><main className="entry-main">
-    {tr(loading ? <section className="entry-card"><h1>{t("Возвращаемся на борт")}</h1><p role="status">{t("Восстанавливаем сессию…")}</p></section> : view === 'shop' ? <Shop userId={user?.id} back={() => setView('game')} /> : view === 'profile' && user ? <Profile user={user} back={() => setView('game')} logout={async () => { const { error } = await supabase!.auth.signOut({ scope: 'local' }); if (error) throw error; try { localStorage.removeItem('fleet:entry'); } catch {} setUser(null); setView('home'); }} /> : <section className="entry-card">
+  return <div className="app-shell entry-shell"><World moving={!loading} showcase /><header className="topbar"><a className="brand" href="./">{t("⚓ ФЛОТ / СЕКТОР 10")}</a><div className="header-right"><span className="entry-header-label">{t("СУМЕРЕЧНЫЙ АРХИПЕЛАГ")}</span><LanguageSwitch /><button className="button secondary" onClick={()=>navigate('leaders')}>{t('Таблица лидеров')}</button>{view!=='home'&&<><button className="button secondary" onClick={guest}>{t('Играть с ботом')}</button><button className="button secondary" onClick={friend}>{t('Играть с другом')}</button></>}<button className="button secondary" onClick={() => navigate('shop')}>{t("Магазин")}</button><SoundButton /></div></header><main className="entry-main">
+    {tr(loading ? <section className="entry-card"><h1>{t("Возвращаемся на борт")}</h1><p role="status">{t("Восстанавливаем сессию…")}</p></section> : view === 'friend' ? <FriendGate user={user} login={()=>navigate('login')} signup={()=>navigate('signup')}><Duel key={user?.id} userId={user?.id||''} onLeaders={()=>navigate('leaders')}/></FriendGate> : view === 'leaders' ? <Leaderboard userId={user?.id} onProfile={()=>navigate(user?'profile':'login')}/> : view === 'shop' ? <Shop userId={user?.id} back={() => setView('game')} /> : view === 'profile' && user ? <Profile user={user} back={() => setView('game')} logout={async () => { const { error } = await supabase!.auth.signOut({ scope: 'local' }); if (error) throw error; try { localStorage.removeItem('fleet:entry'); } catch {} setUser(null); setView('home'); }} /> : <section className="entry-card">
       <small>{t("ТИХОЕ МОРЕ. БОЛЬШАЯ ОПЕРАЦИЯ.")}</small><h1>{tr(view === 'signup' ? 'Создать аккаунт' : view === 'login' ? 'С возвращением, командир' : 'Ваш флот ждёт приказа.')}</h1>
       <p>{t("Десять кораблей. Неизвестный противник. Найдите свой курс среди островов сумеречного моря.")}</p>
-      {tr(view === 'home' ? <div className="entry-actions"><button className="button primary" onClick={guest}>{t("Играть без регистрации")}</button><button className="button secondary" onClick={() => navigate('login')}>{t("Войти")}</button><button className="button secondary" onClick={() => navigate('signup')}>{t("Создать аккаунт")}</button><small>{t("Гостевая партия сохраняется на этом устройстве.")}</small></div> : <>
+      {tr(view === 'home' ? <div className="entry-actions"><button className="button primary" onClick={guest}>{t('Играть с ботом')}</button><button className="button primary" onClick={friend}>{t('Играть с другом')}</button><small>{t('С другом — по ссылке, после входа. Классические правила без карт способностей.')}</small><button className="button secondary" onClick={guest}>{t("Играть без регистрации")}</button><button className="button secondary" onClick={() => navigate('login')}>{t("Войти")}</button><button className="button secondary" onClick={() => navigate('signup')}>{t("Создать аккаунт")}</button><small>{t("Гостевая партия сохраняется на этом устройстве.")}</small></div> : <>
         {tr(!supabase && <div role="status" className="account-notice"><p>{t("Вход и регистрация пока недоступны: сервис аккаунтов не настроен. Гостевая игра полностью доступна.")}</p><details><summary>{t("Как подключить регистрацию")}</summary><ol><li>{t("Выполните SQL-миграцию из папки supabase/migrations в своём проекте Supabase.")}</li><li>{t("Заполните VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY в .env.local и перезапустите приложение.")}</li><li>{t("Включите Email Auth и добавьте адрес приложения в Redirect URLs.")}</li></ol><p>{t("Нужен публичный ключ, не service_role. Полная инструкция — в README.")}</p></details></div>)}
         <form onSubmit={submit}>{tr(view === 'signup' && <label>{t("Позывной")}<input value={nickname} onChange={e => setNickname(e.target.value)} required minLength={2} maxLength={40} autoComplete="nickname" /></label>)}<label>{t("Электронная почта")}<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" maxLength={254} /></label><label>{t("Пароль")}<input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={view === 'signup' ? 'new-password' : 'current-password'} /></label><button className="button primary" disabled={busy || !supabase}>{tr(busy ? 'Подождите…' : view === 'signup' ? 'Зарегистрироваться' : 'Войти в аккаунт')}</button></form>
         <div className="entry-actions"><button className="button secondary" disabled={busy} onClick={() => navigate(view === 'signup' ? 'login' : 'signup')}>{tr(view === 'signup' ? 'Уже есть аккаунт — войти' : 'Создать аккаунт')}</button><button className="button secondary" disabled={busy} onClick={guest}>{t("Играть без регистрации")}</button><button className="button secondary" disabled={busy} onClick={() => navigate('home')}>{t("На стартовый экран")}</button></div>
       </>)}
       <p role="status" aria-live="polite">{tr(message)}</p>
     </section>)}
-  </main><footer>{t("ФЛОТ / СЕКТОР 10 · Одиночная игра против бота")}</footer></div>;
+  </main><footer>{t('ФЛОТ / СЕКТОР 10 · С ботом или с другом')}</footer></div>;
+}
+
+function FriendGate({user,login,signup,children}:{user:User|null;login:()=>void;signup:()=>void;children:React.ReactNode}){
+  if(user&&supabase)return children;
+  return <section className="entry-card"><h1>{t('Играть с другом')}</h1><p>{t('Пригласите друга по ссылке. Для обоих игроков нужен отдельный аккаунт. Классические правила, без купленных способностей.')}</p>{!supabase&&<p role="status">{t('Сервис аккаунтов и сетевой игры не настроен. Подключите Supabase и выполните миграции по инструкции в README. Локальной замены сетевого матча нет.')}</p>}<div className="entry-actions"><button className="button primary" onClick={login}>{t('Войти')}</button><button className="button secondary" onClick={signup}>{t('Создать аккаунт')}</button></div></section>;
 }

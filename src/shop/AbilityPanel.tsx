@@ -16,11 +16,12 @@ export default function AbilityPanel({game,wallet,ready,busy,card,onSelect,onCan
     {ready&&!items.some(i=>wallet.items[i.id]>0)&&<p className="empty-arsenal">{t('У вас пока нет карт. Купите их в магазине и вернитесь в этот бой.')}</p>}
     {ready&&<div className="battle-card-grid">{items.map(item=>{
       const disabled=!playerTurn||busy||!wallet.items[item.id]||(item.id==='chance'&&!!game.bonus);
-      return <button className={`battle-ability-card ${card===item.id?'selected':''}`} key={item.id} aria-label={`${t(item.name)} ×${wallet.items[item.id]}`} aria-pressed={card===item.id} disabled={disabled} onClick={()=>onSelect(item.id as Card)}>
-        {images[item.id]&&<img src={images[item.id]} alt=""/>}<span className="battle-card-title">{t(item.name)}<b>×{wallet.items[item.id]}</b></span><span className="battle-card-description">{t(item.description)}</span><span className="battle-card-state">{t(item.id==='chance'&&game.bonus?'Бонус уже активен':disabled?'Недоступно сейчас':card===item.id?'Карта выбрана':'Готова к применению')}</span>
+      return <button className={`battle-ability-card ${card===item.id?'selected':''}`} key={item.id} title={t(item.description)} aria-label={`${t(item.name)} ×${wallet.items[item.id]}`} aria-pressed={card===item.id} disabled={disabled} onClick={()=>onSelect(item.id as Card)}>
+        {images[item.id]&&<img src={images[item.id]} alt=""/>}<span className="battle-card-title"><span>{t(item.name)}</span><b>×{wallet.items[item.id]}</b></span><span className="battle-card-state">{t(item.id==='chance'&&game.bonus?'Бонус уже активен':disabled?'Недоступно сейчас':card===item.id?'Карта выбрана':'Применить карту')}</span>
       </button>;
     })}</div>}
     {selected&&<div className={`ability-confirm targeting-${card}`} role="status"><strong>{t(selected.name)}</strong><p>{t(targeted?'Прицеливание: наведите на верхнюю левую клетку области и нажмите на поле. На телефоне первое касание выбирает область, второе подтверждает.':'Нажмите «Применить карту» для подтверждения.')}</p>{!targeted&&<button className="button primary" disabled={!playerTurn||busy} onClick={onApply}>{t('Применить карту')}</button>}<button className="button secondary" disabled={busy} onClick={onCancel}>{t('Отмена')} · Esc</button></div>}
+    {selected&&<p className="battle-card-description">{t(selected.description)}</p>}
     {game.bonus&&<p className="bonus-ready" role="status">{t('Бонус активен: следующий выстрел сохраняет ход.')}</p>}
     {game.ability&&<p className="ability-outcome" role="status">{t(abilityMessage(game.ability))}</p>}
     {error&&<p className="placement-notice" role="alert">{t(error)}</p>}
