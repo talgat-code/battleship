@@ -3,6 +3,11 @@ export const normalizeLogin=(value:string)=>value.trim().toLowerCase();
 export const validLogin=(value:string)=>/^[a-z0-9_]{3,24}$/.test(normalizeLogin(value));
 export function authMessage(error:unknown){
   const code=(error as {code?:string})?.code;
+  const character=(error as {invalidCharacter?:string})?.invalidCharacter;
+  if(code==='invalid_login'&&character){
+    const unicode=`U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4,'0')}`;
+    return `Недопустимый символ в логине: ${JSON.stringify(character)} (${unicode}). Используйте латинские буквы, цифры и _.`;
+  }
   const messages:Record<string,string>={
     invalid_login:'Логин: 3–24 символа, латинские буквы, цифры и знак _. Регистр не важен.',
     invalid_password:'Пароль должен содержать от 8 до 72 символов.',
@@ -17,7 +22,7 @@ export function authMessage(error:unknown){
 }
 export async function loginWithName(action:'register'|'login',login:string,password:string){
   if(!supabase)throw {code:'service_unavailable'};
-  if(!validLogin(login))throw {code:'invalid_login'};
+  if(!validLogin(login))throw {code:'invalid_login',invalidCharacter:[...normalizeLogin(login)].find(c=>!/[a-z0-9_]/.test(c))};
   if(password.length<8||password.length>72)throw {code:'invalid_password'};
   const {data,error}=await supabase.functions.invoke('login-auth',{body:{action,login:normalizeLogin(login),password},signal:AbortSignal.timeout(20000)});
   if(error){let details;try{details=await (error as {context?:Response}).context?.json();}catch{}throw details||error;}

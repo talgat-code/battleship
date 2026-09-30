@@ -26,6 +26,7 @@ export default function Entry() {
   const [password, setPassword] = useState('');
   const [showPassword,setShowPassword]=useState(false);
   const immediateGame=useRef(false);
+  const submitting=useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [authNotice,setAuthNotice]=useState<{userId:string;text:string}|null>(null);
@@ -57,7 +58,7 @@ export default function Entry() {
       setUser(session?.user || null); setLoading(false); clearTimeout(timer);
       if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) { if(event === 'INITIAL_SESSION' || activeUser.current !== session.user.id) setView(friendIntent.current?'friend':immediateGame.current?'game':'profile'); setPassword('');setShowPassword(false); }
       activeUser.current = session?.user.id || null;
-      if (event === 'SIGNED_OUT') setView('home');
+      if (event === 'SIGNED_OUT') {setAuthNotice(null);setView('home');}
     });
     return () => { live = false; clearTimeout(timer); data.subscription.unsubscribe(); };
   }, []);
@@ -65,7 +66,8 @@ export default function Entry() {
   function navigate(next: typeof view) { setView(next); setMessage(''); setPassword('');setShowPassword(false); }
   function friend(){friendIntent.current=true;navigate('friend');}
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); if (!supabase || busy) return;
+    e.preventDefault(); if (!supabase || submitting.current) return;
+    submitting.current=true;
     setBusy(true); setMessage('');
     try {
       immediateGame.current=view==='signup';
@@ -83,7 +85,7 @@ export default function Entry() {
       }
       setPassword('');setShowPassword(false);
     } catch(error){immediateGame.current=false;setMessage(authMessage(error));
-    } finally { setBusy(false); }
+    } finally { submitting.current=false;setBusy(false); }
   }
   const notice=user?.id===authNotice?.userId?authNotice?.text:undefined;
   if (!loading && view === 'game') return <App accountNotice={notice} key={user?.id || 'guest'} userId={user?.id} onShop={() => navigate('shop')} onAccount={() => navigate(user ? 'profile' : 'home')} accountLabel={user ? 'Профиль' : 'Гость · Войти'} />;
@@ -93,7 +95,7 @@ export default function Entry() {
       <p>{t("Десять кораблей. Неизвестный противник. Найдите свой курс среди островов сумеречного моря.")}</p>
       {tr(view === 'home' ? <div className="entry-actions"><button className="button primary" onClick={guest}>{t('Играть с ботом')}</button><button className="button primary" onClick={friend}>{t('Играть с другом')}</button><small>{t('С другом — по ссылке, после входа. Классические правила без карт способностей.')}</small><button className="button secondary" onClick={guest}>{t("Играть без регистрации")}</button><button className="button secondary" onClick={() => navigate('login')}>{t("Войти")}</button><button className="button secondary" onClick={() => navigate('signup')}>{t("Создать аккаунт")}</button><small>{t("Гостевая партия сохраняется на этом устройстве.")}</small></div> : <>
         {tr(!supabase && <div role="status" className="account-notice"><p>{t("Вход и регистрация пока недоступны: сервис аккаунтов не настроен. Гостевая игра полностью доступна.")}</p><details><summary>{t("Как подключить регистрацию")}</summary><ol><li>{t("Выполните SQL-миграцию из папки supabase/migrations в своём проекте Supabase.")}</li><li>{t("Заполните VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY в .env.local и перезапустите приложение.")}</li><li>{t("Включите Email Auth и добавьте адрес приложения в Redirect URLs.")}</li></ol><p>{t("Нужен публичный ключ, не service_role. Полная инструкция — в README.")}</p></details></div>)}
-        <form onSubmit={submit}><label>{t(view==='signup'?'Логин':'Логин или почта')}<input type="text" value={email} onChange={e=>setEmail(e.target.value)} required minLength={view==='signup'?3:1} maxLength={view==='signup'?24:254} pattern={view==='signup'?'[A-Za-z0-9_]{3,24}':undefined} autoComplete="username" autoCapitalize="none" spellCheck={false}/></label>{view==='signup'&&<p className="auth-hint">{t('3–24 символа: латинские буквы, цифры и _. Регистр не важен. Почта не нужна.')}</p>}<label htmlFor="account-password">{t('Пароль')}</label><div className="password-field"><input id="account-password" type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={view==='signup'?8:1} maxLength={view==='signup'?72:undefined} autoComplete={view==='signup'?'new-password':'current-password'}/><button type="button" className="password-eye" aria-label={t(showPassword?'Скрыть пароль':'Показать пароль')} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={20}/>:<Eye size={20}/>}</button></div>{view==='signup'&&<p className="auth-hint">{t('Пароль: 8–72 символа. Сохраните его: восстановление через почту для тестовых логинов недоступно.')}</p>}<button className="button primary" disabled={busy||!supabase}>{tr(busy?'Подождите…':view==='signup'?'Зарегистрироваться':'Войти в аккаунт')}</button></form>
+        <form onSubmit={submit}><label>{t(view==='signup'?'Логин':'Логин или почта')}<input type="text" value={email} onChange={e=>setEmail(e.target.value)} required minLength={view==='signup'?3:1} maxLength={254} autoComplete="username" autoCapitalize="none" spellCheck={false}/></label>{view==='signup'&&<p className="auth-hint">{t('3–24 символа: латинские буквы, цифры и _. Регистр не важен. Почта не нужна.')}</p>}<label htmlFor="account-password">{t('Пароль')}</label><div className="password-field"><input id="account-password" type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={view==='signup'?8:1} maxLength={view==='signup'?72:undefined} autoComplete={view==='signup'?'new-password':'current-password'}/><button type="button" className="password-eye" aria-label={t(showPassword?'Скрыть пароль':'Показать пароль')} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={20}/>:<Eye size={20}/>}</button></div>{view==='signup'&&<p className="auth-hint">{t('Пароль: 8–72 символа. Сохраните его: восстановление через почту для тестовых логинов недоступно.')}</p>}<button className="button primary" disabled={busy||!supabase}>{tr(busy?'Подождите…':view==='signup'?'Зарегистрироваться':'Войти в аккаунт')}</button></form>
         <div className="entry-actions"><button className="button secondary" disabled={busy} onClick={() => navigate(view === 'signup' ? 'login' : 'signup')}>{tr(view === 'signup' ? 'Уже есть аккаунт — войти' : 'Создать аккаунт')}</button><button className="button secondary" disabled={busy} onClick={guest}>{t("Играть без регистрации")}</button><button className="button secondary" disabled={busy} onClick={() => navigate('home')}>{t("На стартовый экран")}</button></div>
       </>)}
       <p role="status" aria-live="polite">{tr(message)}</p>

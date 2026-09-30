@@ -1,7 +1,15 @@
 import {beforeEach,it,expect,vi} from 'vitest';
 const mocks=vi.hoisted(()=>({invoke:vi.fn(),setSession:vi.fn(),profile:vi.fn()}));
 vi.mock('./client',()=>({supabase:{functions:{invoke:mocks.invoke},auth:{setSession:mocks.setSession},from:()=>({select:()=>({eq:()=>({abortSignal:()=>({single:mocks.profile})})})})}}));
-import {loginWithName} from './login';
+import {authMessage,loginWithName} from './login';
+it('normalizes surrounding spaces and reports invisible characters before any request',async()=>{
+  await loginWithName('register',' qwert09_t ','test-password');
+  expect(mocks.invoke.mock.calls[0][1].body.login).toBe('qwert09_t');
+  mocks.invoke.mockClear();
+  try{await loginWithName('register','qwert09_t\u200b','test-password');throw Error('Expected rejection');}
+  catch(error){expect(authMessage(error)).toContain('U+200B');}
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});
 beforeEach(()=>{vi.clearAllMocks();mocks.invoke.mockResolvedValue({data:{session:{access_token:'test',refresh_token:'test'}},error:null});mocks.setSession.mockResolvedValue({data:{user:{id:'same-user'}},error:null});mocks.profile.mockResolvedValue({data:{id:'same-user'},error:null});});
 it('confirms profile creation only after reading the same server profile',async()=>{
   expect(await loginWithName('register','captain','test-password')).toEqual({userId:'same-user',profileReady:true});

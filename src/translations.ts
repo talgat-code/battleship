@@ -1,5 +1,6 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+Недопустимый символ в логине: {0}. Используйте латинские буквы, цифры и _.|Логинде рұқсат етілмеген таңба: {0}. Латын әріптерін, сандарды және _ қолданыңыз.|Invalid character in username: {0}. Use Latin letters, digits and _.
 Пользователь зарегистрирован. Профиль создан. Вы вошли в аккаунт.|Пайдаланушы тіркелді. Профиль жасалды. Аккаунтқа кірдіңіз.|Registration successful. Profile created. You are signed in.
 Аккаунт создан, вход выполнен. Профиль пока не удалось загрузить — проверьте подключение или откройте профиль повторно.|Аккаунт жасалды, кіру орындалды. Профиль жүктелмеді — байланысты тексеріңіз немесе профильді қайта ашыңыз.|Account created and signed in. Your profile could not be loaded yet — check your connection or reopen your profile.
 Вход выполнен. С возвращением, командир!|Кіру орындалды. Қош келдіңіз, командир!|Signed in. Welcome back, commander!
