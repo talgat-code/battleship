@@ -8,6 +8,7 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
   const [rows, setRows] = useState<Result[]>([]);
   const [counts, setCounts] = useState([0, 0]);
   const [busy, setBusy] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState('');
   async function load() {
     setBusy(true); setMessage('');
@@ -22,16 +23,17 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
       for (const r of results) if (r.error) throw r.error;
       setName(results[0].data?.nickname || 'Командир'); setRows((results[1].data || []) as Result[]);
       setCounts([results[2].count || 0, results[3].count || 0]);
+      setLoaded(true);
     } catch { setMessage('Не удалось загрузить профиль. Проверьте подключение и настройку базы. Результаты, ожидающие отправки, сохранены на устройстве.'); }
     finally { setBusy(false); }
   }
   useEffect(() => { void load(); }, [user.id]);
-  return <section className="entry-card profile-card"><small>ЛИЧНОЕ ДЕЛО</small><h1>Профиль командира</h1><p>{user.email}</p>
+  return <section className="entry-card profile-card"><small>ЛИЧНОЕ ДЕЛО</small><h1>Профиль командира</h1><p>{user.email}</p><p>На службе с {new Date(user.created_at).toLocaleDateString('ru-RU')}</p>
     <form onSubmit={async e => { e.preventDefault(); setBusy(true); try { const { error } = await supabase!.from('profiles').update({ nickname: name.trim() }).eq('id', user.id); if (error) throw error; setMessage('Имя сохранено.'); } catch { setMessage('Не удалось сохранить имя. Попробуйте ещё раз.'); } finally { setBusy(false); } }}>
-      <label>Позывной<input value={name} onChange={e => setName(e.target.value)} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy}>Сохранить имя</button>
+      <label>Позывной<input value={name} onChange={e => setName(e.target.value)} disabled={busy || !loaded} required minLength={2} maxLength={40} /></label><button className="button secondary" disabled={busy || !loaded}>Сохранить имя</button>
     </form><p aria-live="polite">{busy ? 'Загрузка…' : message}</p>
-    <div className="profile-score"><span>Победы <b>{counts[0]}</b></span><span>Поражения <b>{counts[1]}</b></span></div>
-    <h2>Последние 100 партий против бота</h2><ul className="match-history">{rows.map(r => <li key={r.id}><strong>{r.outcome === 'win' ? 'Победа' : 'Поражение'}</strong><time>{new Date(r.finished_at).toLocaleString('ru-RU')}</time><span>{r.shots} выстрелов</span></li>)}</ul>{!rows.length && !busy && <p>Завершённых партий пока нет.</p>}
+    <div className="profile-score"><span>Сыграно <b>{loaded ? counts[0]+counts[1] : '—'}</b></span><span>Победы <b>{loaded ? counts[0] : '—'}</b></span><span>Поражения <b>{loaded ? counts[1] : '—'}</b></span></div>
+    <h2>Последние 100 партий против бота</h2><ul className="match-history">{rows.map(r => <li key={r.id}><strong>{r.outcome === 'win' ? 'Победа' : 'Поражение'}</strong><time>{new Date(r.finished_at).toLocaleString('ru-RU')}</time><span>{r.shots} выстрелов</span></li>)}</ul>{loaded && !rows.length && !busy && <p>Завершённых партий пока нет. Начните первую операцию против бота.</p>}
     <div className="entry-actions"><button className="button primary" onClick={back}>Вернуться к игре</button><button className="button secondary" onClick={() => void load()} disabled={busy}>Обновить профиль</button><button className="button secondary" disabled={busy} onClick={async () => { setBusy(true); try { await logout(); } catch { setMessage('Не удалось выйти. Проверьте подключение и повторите.'); } finally { setBusy(false); } }}>Выйти из аккаунта</button></div>
   </section>;
 }

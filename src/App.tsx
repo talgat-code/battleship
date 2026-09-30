@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Anchor, ArrowRight, Crosshair, RotateCw, Shuffle, Radio, Shield, Waves, RotateCcw, Check, Info, Trophy, Activity, Cpu } from 'lucide-react';
 import Board from './Board';
+import { SoundButton, useShotSound } from './Audio';
 import World from './scene/World';
 import { gameKey, enqueue } from './account/storage';
 import { flushResults } from './account/results';
 import useMedia from './useMedia';
-import { FLEET, Game, Cell, freshGame, decodeSave, place, randomFleet, cellsFor, canPlace, fire, botTarget, isSunk } from './game';
+import { chooseShot, LEVELS, validDifficulty, type Difficulty } from './bot';
+import { FLEET, Game, Cell, freshGame, decodeSave, place, randomFleet, cellsFor, canPlace, fire, isSunk } from './game';
 
 const names: Record<number, string> = { 1: 'Патрульный катер', 2: 'Корвет', 3: 'Эсминец', 4: 'Авианосец' };
 function load(key: string) { try { const raw = localStorage.getItem(key); const g = raw && decodeSave(raw) || freshGame(); return { ...g, matchId: g.matchId || crypto.randomUUID() }; } catch { return { ...freshGame(), matchId: crypto.randomUUID() }; } }
@@ -13,6 +15,9 @@ function load(key: string) { try { const raw = localStorage.getItem(key); const 
 export default function App({ userId, onAccount, accountLabel }: { userId?: string; onAccount: () => void; accountLabel: string }) {
   const storageKey = gameKey(userId);
   const [game, setGame] = useState<Game>(() => load(storageKey));
+  const [preferredDifficulty, setPreferredDifficulty] = useState<Difficulty>(() => { try { const v = localStorage.getItem('fleet:difficulty'); return validDifficulty(v) ? v : 'tactician'; } catch { return 'tactician'; } });
+  const difficulty = validDifficulty(game.difficulty) ? game.difficulty : game.phase === 'setup' ? preferredDifficulty : 'tactician';
+  useShotSound(game.player.shots.length + game.bot.shots.length);
   const [syncNotice, setSyncNotice] = useState('');
   const [selected, setSelected] = useState(() => FLEET.findIndex((_, id) => !game.player.ships.some(s => s.id === id)));
   const [vertical, setVertical] = useState(false);
@@ -46,7 +51,7 @@ export default function App({ userId, onAccount, accountLabel }: { userId?: stri
   }, [userId, game.phase, game.matchId]);
   useEffect(() => {
     if (game.phase !== 'battle' || game.turn !== 'bot') return;
-    const timer = setTimeout(() => setGame(g => g.phase === 'battle' && g.turn === 'bot' ? fire(g, 'bot', botTarget(g.player.shots)) : g), 850);
+    const timer = setTimeout(() => setGame(g => g.phase === 'battle' && g.turn === 'bot' ? fire(g, 'bot', chooseShot(g.player.shots, validDifficulty(g.difficulty) ? g.difficulty : 'tactician')) : g), 850);
     return () => clearTimeout(timer);
   }, [game]);
 
@@ -58,7 +63,16 @@ export default function App({ userId, onAccount, accountLabel }: { userId?: stri
     setGame({ ...game, player: { ...game.player, ships } });
     setSelected(FLEET.findIndex((_, id) => !ships.some(s => s.id === id))); setNotice('');
   }
-  function start() { setGame({ ...game, phase: 'battle' }); setHover(null); setNotice(''); setField('bot'); }
+  function start() { setGame({ ...game, difficulty, phase: 'battle' }); setHover(null); setNotice(''); setField('bot'); }
+  function rotate() {
+    if (!setup || ready) return;
+    const next = !vertical; setVertical(next);
+    setNotice(hover && !canPlace(game.player.ships, cellsFor(hover,FLEET[selected],next)) ? 'После поворота корабль выходит за поле или касается другого. Выберите свободную позицию.' : '');
+  }
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if(e.code !== 'KeyR' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]'))return; e.preventDefault(); rotate(); };
+    window.addEventListener('keydown',key); return () => window.removeEventListener('keydown',key);
+  },[setup,ready,vertical,hover,selected,game.player.ships]);
   const preview = setup && hover && selected >= 0 && !ready ? cellsFor(hover, FLEET[selected], vertical) : [];
   const playerLost = game.player.ships.filter(s => isSunk(s, game.player.shots)).length;
   const enemyLost = game.bot.ships.filter(s => isSunk(s, game.bot.shots)).length;
@@ -71,11 +85,12 @@ export default function App({ userId, onAccount, accountLabel }: { userId?: stri
     <World moving={moving} />
     <header className="topbar">
       <a className="brand" href="./"><span className="brand-icon"><Anchor size={25} /></span><span>ФЛОТ<span className="brand-divider">/</span><b>СЕКТОР 10</b><small>ТАКТИЧЕСКИЙ КОМАНДНЫЙ ЦЕНТР</small></span></a>
-      <div className="header-right"><span className="connection"><i /> СУМЕРЕЧНЫЙ АРХИПЕЛАГ</span><button className="button graphics-toggle" aria-label={economy || reduced ? 'Спокойное море' : 'Живое море'} aria-pressed={economy || reduced} disabled={reduced} onClick={() => setEconomy(!economy)} title={reduced ? 'Системная настройка уменьшения движения включена' : 'Уменьшить движение: остановить волны, качку, акул и частицы'}><Cpu size={16} /><span>{economy || reduced ? 'Спокойное море' : 'Живое море'}</span></button><button className="icon-button" aria-label="Правила игры" aria-expanded={help} onClick={() => setHelp(!help)}><Info size={20} /></button></div>
+      <div className="header-right">{userId && <button className="button header-profile" onClick={onAccount}>Профиль</button>}<SoundButton /><span className="connection"><i /> СУМЕРЕЧНЫЙ АРХИПЕЛАГ</span><button className="button graphics-toggle" aria-label={economy || reduced ? 'Спокойное море' : 'Живое море'} aria-pressed={economy || reduced} disabled={reduced} onClick={() => setEconomy(!economy)} title={reduced ? 'Системная настройка уменьшения движения включена' : 'Уменьшить движение: остановить волны, качку, акул и частицы'}><Cpu size={16} /><span>{economy || reduced ? 'Спокойное море' : 'Живое море'}</span></button><button className="icon-button" aria-label="Правила игры" aria-expanded={help} onClick={() => setHelp(!help)}><Info size={20} /></button></div>
     </header>
     <main>
       <div className="account-bar"><span>{userId ? 'Личный флот · история в профиле' : 'Гостевой флот · сохранение на устройстве'}</span><button className="button secondary" onClick={onAccount}>{accountLabel}</button></div>
       {syncNotice && <p className="account-notice" role="status">{syncNotice}</p>}
+      <section className="difficulty-panel" aria-label="Сложность бота">{setup ? <><label>Сложность бота <select aria-label="Сложность бота" value={difficulty} onChange={e=>{const value=e.target.value as Difficulty;setPreferredDifficulty(value);setGame(g=>({...g,difficulty:value}));try{localStorage.setItem('fleet:difficulty',value);}catch{}}}>{Object.entries(LEVELS).map(([key,v])=><option key={key} value={key}>{v.name}</option>)}</select></label><p>{LEVELS[difficulty].description}</p><details><summary>Чем отличаются уровни</summary>{Object.values(LEVELS).map(v=><p key={v.name}><b>{v.name}:</b> {v.description}</p>)}</details></> : <span>Противник: <b>{LEVELS[difficulty].name}</b></span>}</section>
       <section className="page-heading"><div><div className="eyebrow"><span /> СУМЕРЕЧНЫЙ АРХИПЕЛАГ <span className="operation-number">/ СЕКТОР 10</span></div><h1>{title}<span>.</span></h1><p>За скалами собирается гроза. Маяк ещё держит курс.</p></div><div className="weather-readout" aria-hidden="true"><Waves size={30} /><span>СЕВЕРНЫЙ ТИХИЙ ОКЕАН<b>19:42 <i> / </i> СИНИЙ ЧАС</b></span></div><button className="button secondary new-game" onClick={() => setConfirm(true)}><RotateCcw size={16} /> Новая игра</button></section>
       {help && <section className="help-panel"><h2>Приказ командования</h2><p>Разместите 10 кораблей, оставляя между ними клетку, включая диагонали. Корабль занимает клетки вправо или вниз от выбранной. Попадание сохраняет ход, промах передаёт его. Уничтожьте весь флот противника для победы. На сенсорном экране сначала выберите клетку, затем подтвердите действие кнопкой под полем. «Крупные клетки» увеличивают поле; его можно сдвигать в сторону.</p></section>}
       <section className={`operation-strip ${!setup && !finished && game.turn === 'bot' ? 'bot-turn' : ''} ${finished ? 'finished' : ''}`} aria-live="polite">
@@ -86,7 +101,7 @@ export default function App({ userId, onAccount, accountLabel }: { userId?: stri
       <div className="workspace">
         <section className="fields-panel">
           <div className="mobile-tabs" role="tablist" aria-label="Выбор поля"><button role="tab" aria-selected={field === 'player'} onClick={() => setField('player')}><Shield size={17} /> Ваш флот <b>{setup ? game.player.ships.length : 10 - playerLost}</b></button><button role="tab" aria-selected={field === 'bot'} onClick={() => setField('bot')}><Crosshair size={17} /> Противник <b>{10 - enemyLost}</b></button></div>
-          {setup && <div className="deployment-toolbar"><div><Anchor size={17} /><span>{ready ? 'Все корабли на позиции' : `${names[FLEET[selected]]} · ${FLEET[selected]} кл.`}</span><select className="mobile-ship-select" aria-label="Выбрать корабль" disabled={ready} value={ready ? '' : FLEET[selected]} onChange={e => { setSelected(FLEET.findIndex((n, id) => n === Number(e.target.value) && !game.player.ships.some(s => s.id === id))); setNotice(''); setField('player'); }}>{ready ? <option value="">Флот готов</option> : [4, 3, 2, 1].filter(n => FLEET.some((length, id) => length === n && !game.player.ships.some(s => s.id === id))).map(n => <option key={n} value={n}>{names[n]} · {n} кл.</option>)}</select></div><button className="button rotate" disabled={ready} onClick={() => setVertical(!vertical)}><RotateCw size={16} /> Повернуть <b>{vertical ? '↓' : '→'}</b></button></div>}
+          {setup && <div className="deployment-toolbar"><div><Anchor size={17} /><span>{ready ? 'Все корабли на позиции' : `${names[FLEET[selected]]} · ${FLEET[selected]} кл.`}</span><select className="mobile-ship-select" aria-label="Выбрать корабль" disabled={ready} value={ready ? '' : FLEET[selected]} onChange={e => { setSelected(FLEET.findIndex((n, id) => n === Number(e.target.value) && !game.player.ships.some(s => s.id === id))); setNotice(''); setField('player'); }}>{ready ? <option value="">Флот готов</option> : [4, 3, 2, 1].filter(n => FLEET.some((length, id) => length === n && !game.player.ships.some(s => s.id === id))).map(n => <option key={n} value={n}>{names[n]} · {n} кл.</option>)}</select></div><button className="button rotate" disabled={ready} onClick={rotate} title="Повернуть корабль · R"><RotateCw size={16} /> Повернуть <b>{vertical ? '↓' : '→'}</b></button></div>}
           {notice && <p className="placement-notice" role="alert">{notice}</p>}
           <div className="fields-grid">
             {(!narrow || field === 'player') && <article className="field-card ally-card"><div className="field-heading"><div><span className="field-emblem"><Shield size={20} /></span><div><small>АКВАТОРИЯ АЛЬФА</small><h2>Ваш флот</h2></div></div><span className="tag teal">СОЮЗНЫЙ СЕКТОР</span></div>
