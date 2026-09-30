@@ -21,7 +21,7 @@ test('guest language, full match, reward, purchase, boosted match and restore',a
   await page.getByRole('button',{name:'Auto deploy',exact:true}).click();await page.getByRole('button',{name:'Start operation',exact:true}).click();
   await finish(page);await expect(page.locator('.reward-notice')).toContainText('Match reward:');
   const rewarded=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).balance,walletKey);
-  expect([385,430]).toContain(rewarded);
+  expect([5590,5635]).toContain(rewarded);
   await page.reload();await expect(page.locator('.victory-card')).toBeVisible();
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).balance,walletKey)).toBe(rewarded);
   await page.getByRole('button',{name:/Shop ·/}).click();await page.getByRole('button',{name:'Cards',exact:true}).click();
@@ -30,16 +30,16 @@ test('guest language, full match, reward, purchase, boosted match and restore',a
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).balance,walletKey)).toBe(rewarded-180);
   await page.screenshot({path:'artifacts/shop-desktop.png',fullPage:true});
   await page.getByRole('button',{name:'Back to game',exact:true}).click();await page.getByRole('button',{name:'New operation',exact:true}).click();
-  await page.getByRole('combobox',{name:'Battle mode',exact:true}).selectOption('boosted');
   await page.getByRole('button',{name:'Auto deploy',exact:true}).click();await page.getByRole('button',{name:'Start operation',exact:true}).click();
   await page.getByRole('button',{name:/Sonar ×1/}).click();await page.getByRole('button',{name:'Enemy board A1',exact:true}).click();
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).bot.shots.length,STORAGE_KEY)).toBe(0);
-  await page.getByRole('button',{name:'Use card',exact:true}).click();await expect(page.getByText(/Sonar: undamaged segments/)).toBeVisible();
+  await expect(page.locator('.ability-outcome')).toContainText('Sonar: undamaged segments');
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).items.sonar,walletKey)).toBe(0);
-  await page.reload();await expect(page.getByText(/Sonar: undamaged segments/)).toBeVisible();
+  await page.reload();await expect(page.locator('.ability-outcome')).toContainText('Sonar: undamaged segments');
   await finish(page);await expect(page.locator('.reward-notice')).toContainText('Match reward:');
 });
 test('mobile Kazakh shop, permanent emote, insufficient tokens and no overflow',async({page})=>{
+  await page.addInitScript(()=>{const k='fleet:wallet:v1:guest';if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify({version:1,testingGrant:1,balance:350,items:{},equipped:[],hidden:false,rewards:[],receipts:[]}));});
   await page.setViewportSize({width:390,height:844});await page.goto('/');
   await page.locator('.language-switch').first().selectOption('kk');await page.getByRole('button',{name:'Дүкен',exact:true}).click();
   const laugh=page.locator('.shop-item').filter({has:page.getByRole('heading',{name:'Ха-ха',exact:true})});
@@ -71,6 +71,7 @@ test('tap rotates an already placed carrier while preserving the rest',async({br
   await context.close();
 });
 test('two guest tabs cannot spend the same balance twice',async({context,page})=>{
+  await page.addInitScript(()=>{const k='fleet:wallet:v1:guest';if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify({version:1,testingGrant:1,balance:350,items:{},equipped:[],hidden:false,rewards:[],receipts:[]}));});
   await page.goto('/');await page.getByRole('button',{name:'Магазин',exact:true}).click();await page.getByRole('button',{name:'Карточки',exact:true}).click();
   const second=await context.newPage();await second.goto('/');await second.getByRole('button',{name:'Магазин',exact:true}).click();await second.getByRole('button',{name:'Карточки',exact:true}).click();
   await Promise.all([page,second].map(p=>p.locator('.art-sonar').getByRole('button',{name:'Купить',exact:true}).click()));
@@ -89,9 +90,9 @@ test('boosted cards: extra shot, reveal, area attack and kraken',async({page})=>
   await expect(page.getByText('Ваш ход, командир')).toBeVisible();
   await page.getByRole('button',{name:'Поле противника А1',exact:true}).click();
   await use('Перехват сигнала');expect(await page.locator('.enemy-card .revealed').count()).toBeGreaterThan(0);
-  await page.getByRole('button',{name:/Глубинная бомба ×1/}).click();await page.getByRole('button',{name:'Поле противника А1 попадание',exact:true}).click();await page.getByRole('button',{name:'Применить карту',exact:true}).click();
+  await page.getByRole('button',{name:/Глубинная бомба ×1/}).click();await page.getByRole('button',{name:'Поле противника А1 попадание',exact:true}).click();
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).bot.shots.length,STORAGE_KEY)).toBe(5);
-  await use('Кракен');expect(await page.locator('.enemy-card .sunk').count()).toBeGreaterThan(0);
+  await use('Кракен');await expect(page.locator('.enemy-card .sunk').first()).toBeVisible();
   await page.screenshot({path:'artifacts/boosted-battle.png',fullPage:true});
   const before=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),walletKey);await page.reload();
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).items,walletKey)).toEqual(before.items);

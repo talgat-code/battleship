@@ -5,7 +5,7 @@ import { Maximize2, Minimize2, Crosshair } from 'lucide-react';
 import * as THREE from 'three';
 import { Board as BoardData, Cell, Shot, isSunk, same } from './game';
 import AbilityEffect from './scene/AbilityEffect';
-import type { AbilityEvent } from './abilities';
+import { abilityMessage, type AbilityEvent } from './abilities';
 import Vessel from './scene/Vessel';
 import Ocean from './scene/Ocean';
 import Sharks from './scene/Sharks';
@@ -57,8 +57,10 @@ function Impact({ shot, lite }: { shot: Shot; lite: boolean }) {
     <group ref={burst}>{tr(Array.from({ length: lite ? 4 : 8 }, (_, i) => <mesh key={i}><icosahedronGeometry args={[1, 0]} /><meshBasicMaterial color={hit ? sunk && i % 2 ? '#77788e' : '#ffd187' : '#d0ffed'} transparent depthWrite={false} /></mesh>))}</group>
   </group>;
 }
-type Props = { revealed?:number[]; ability?:AbilityEvent; allowUsed?:boolean; rotateOnTouch?:boolean; data: BoardData; enemy?: boolean; active: boolean; onCell: (c: Cell) => void; preview?: Cell[]; valid?: boolean; onHover?: (c: Cell | null) => void; label: string; moving: boolean };
-export default function Board({ revealed=[], ability, allowUsed=false, rotateOnTouch=false, data, enemy = false, active, onCell, preview = [], valid = true, onHover, label, moving }: Props) {
+type Props = { targeting?:boolean; revealed?:number[]; ability?:AbilityEvent; allowUsed?:boolean; rotateOnTouch?:boolean; data: BoardData; enemy?: boolean; active: boolean; onCell: (c: Cell) => void; preview?: Cell[]; valid?: boolean; onHover?: (c: Cell | null) => void; label: string; moving: boolean };
+export default function Board({ targeting=false, revealed=[], ability, allowUsed=false, rotateOnTouch=false, data, enemy = false, active, onCell, preview = [], valid = true, onHover, label, moving }: Props) {
+  const touchTarget=useRef<Cell|null>(null);
+  useEffect(()=>{touchTarget.current=null;setFocused(null);},[targeting,ability?.id]);
   const LETTERS=coordinateLetters();
   const [focused, setFocused] = useState<Cell | null>(null);
   const [zoom, setZoom] = useState(false);
@@ -82,7 +84,8 @@ export default function Board({ revealed=[], ability, allowUsed=false, rotateOnT
   const occupied = !allowUsed && focused && data.shots.some(s => same(s, focused));
   const aim = active && focused && !occupied;
   return <div className="board-container" ref={host} data-quality={strained ? 'static-auto' : lite ? 'lite' : 'full'} data-animated={animated}>
-    <div className="board-tools"><span><Crosshair size={14} />{tr(aim ? `${LETTERS[focused.x]}${focused.y + 1} · ${enemy ? 'цель выбрана' : valid ? 'позиция доступна' : 'нельзя разместить'}` : 'Сетка 10 × 10')}</span><button className="zoom-button" aria-pressed={zoom} onClick={() => setZoom(!zoom)}>{tr(zoom ? <Minimize2 size={14} /> : <Maximize2 size={14} />)}{tr(zoom ? 'Всё поле' : 'Крупные клетки')}</button></div>
+    {ability&&<div className={`board-ability-message effect-${ability.card}`} key={ability.id}>{t(abilityMessage(ability))}</div>}
+    <div className="board-tools"><span><Crosshair size={14} />{tr(aim ? `${LETTERS[focused.x]}${focused.y + 1} · ${targeting ? 'Применить карту' : enemy ? 'цель выбрана' : valid ? 'позиция доступна' : 'нельзя разместить'}` : 'Сетка 10 × 10')}</span><button className="zoom-button" aria-pressed={zoom} onClick={() => setZoom(!zoom)}>{tr(zoom ? <Minimize2 size={14} /> : <Maximize2 size={14} />)}{tr(zoom ? 'Всё поле' : 'Крупные клетки')}</button></div>
     <div className={`board-scroll ${zoom ? 'zoomed' : ''}`} tabIndex={zoom ? 0 : -1} aria-label={tr(`${label}: область просмотра`)}>
       <div className={`board ${enemy ? 'enemy-board' : ''} ${active ? 'board-active' : ''}`} style={{ aspectRatio: PROJECTION.aspect }}>
         <div className="column-labels" style={{ top: `${(GRID.top - .055) * 100}%` }}>{tr([...LETTERS].map((l, i) => <span className={aim && focused.x === i ? 'coordinate-active' : ''} key={l}>{tr(l)}</span>))}</div>
@@ -107,7 +110,7 @@ export default function Board({ revealed=[], ability, allowUsed=false, rotateOnT
             return <button key={i} type="button" aria-label={tr(`${label} ${LETTERS[c.x]}${c.y + 1}${shot ? ` ${shot.result === 'miss' ? 'мимо' : shot.result === 'sunk' ? 'потоплен' : 'попадание'}` : ''}`)} disabled={!active || (!!shot&&!allowUsed)} className={`cell ${enemy&&data.ships.some(s=>revealed.includes(s.id)&&!isSunk(s,data.shots)&&s.cells.some(p=>same(p,c)))?'revealed':''} ${shot?.result || ''} ${selected ? valid ? 'preview' : 'invalid' : ''} ${isFocused ? 'focused' : ''} ${last && same(last, c) ? 'last-shot' : ''}`}
               onPointerDown={e => { if (e.pointerType === 'touch' || e.pointerType === 'pen') setTouchInput(true); }}
               onMouseEnter={() => { if (!touch) { setFocused(c); onHover?.(c); } }} onFocus={() => { setFocused(c); onHover?.(c); }}
-              onClick={() => { setFocused(c); onHover?.(c); if (!touch || (rotateOnTouch && data.ships.some(s=>s.cells.some(p=>same(p,c))))) onCell(c); }}>
+              onClick={() => { setFocused(c); onHover?.(c); if(targeting&&touch){if(touchTarget.current&&same(touchTarget.current,c)){onCell(c);touchTarget.current=null;}else touchTarget.current=c;}else if (!touch || (rotateOnTouch && data.ships.some(s=>s.cells.some(p=>same(p,c))))) onCell(c); }}>
               {tr(shot ? shot.result === 'miss' ? <i /> : <span>{tr(shot.result === 'sunk' ? '×' : '✦')}</span> : isFocused && enemy ? <Crosshair /> : null)}
             </button>;
           }))}
@@ -118,6 +121,6 @@ export default function Board({ revealed=[], ability, allowUsed=false, rotateOnT
     {tr(zoom && <p className="pan-hint">{t("Сдвигайте поле в сторону, чтобы увидеть другие клетки.")}</p>)}
     {tr(zoom && !enemy && data.ships.some(s => s.length === 4) && <p className="crew-caption">{t("Палубная команда видна на авианосце в увеличенном виде.")}</p>)}
     {tr(strained && moving && <p className="pan-hint">{t("Море успокоилось для плавного управления.")}</p>)}
-    {tr(touch && active && <button className="button primary touch-confirm" disabled={!aim || (!enemy && !valid)} onClick={() => { if (aim) { onCell(focused); setFocused(null); onHover?.(null); } }}>{tr(aim ? `${enemy ? 'Огонь' : 'Разместить'} · ${LETTERS[focused.x]}${focused.y + 1}` : 'Коснитесь клетки на поле')}<Crosshair size={18} /></button>)}
+    {tr(touch && active && <button className="button primary touch-confirm" disabled={!aim || ((!enemy||targeting) && !valid)} onClick={() => { if (aim) { onCell(focused); setFocused(null); onHover?.(null); } }}>{tr(aim ? `${targeting ? 'Применить карту' : enemy ? 'Огонь' : 'Разместить'} · ${LETTERS[focused.x]}${focused.y + 1}` : 'Коснитесь клетки на поле')}<Crosshair size={18} /></button>)}
   </div>;
 }

@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../account/client';
 import { gameKey } from '../account/storage';
-import { newWallet, transact, type Command, type Wallet } from './economy';
+import { newWallet, applyTestingGrant, transact, type Command, type Wallet } from './economy';
 import type { Game } from '../game';
-const key=(user?:string)=>`fleet:wallet:v1:${user||'guest'}`;
-function read(user?:string):Wallet {
+export const walletKey=(user?:string)=>`fleet:wallet:v1:${user||'guest'}`;
+const key=walletKey;
+export function readWallet(user?:string):Wallet {
   const raw=localStorage.getItem(key(user));
   if(!raw)return newWallet();
   const value=JSON.parse(raw) as Wallet;
   if(value.version!==1||!Number.isInteger(value.balance)||value.balance<0)throw Error('Не удалось прочитать сохранение магазина.');
-  return value;
+  // Account balances remain server-authoritative; only migrate the guest here.
+  const upgraded=user?value:applyTestingGrant(value);
+  if(upgraded!==value)localStorage.setItem(key(user),JSON.stringify(upgraded));
+  return upgraded;
 }
+const read=readWallet;
 function write(value:Wallet,user?:string) { localStorage.setItem(key(user),JSON.stringify(value));window.dispatchEvent(new Event('fleet-wallet')); }
 export function savedGame(user?:string) {try{return read(user).game;}catch{return undefined;}}
 export function saveGame(game:Game,user?:string) {

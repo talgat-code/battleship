@@ -1,8 +1,9 @@
 import { catalog, type ItemId } from './catalog';
 import { resolveAction, type Action } from '../abilities';
 import type { Game } from '../game';
-export type Wallet = {version:1;balance:number;items:Record<string,number>;equipped:string[];hidden:boolean;rewards:string[];receipts:string[];game?:Game};
-export const newWallet=():Wallet=>({version:1,balance:350,items:{},equipped:[],hidden:false,rewards:[],receipts:[]});
+export type Wallet = {version:1;testingGrant?:1;balance:number;items:Record<string,number>;equipped:string[];hidden:boolean;rewards:string[];receipts:string[];game?:Game};
+export const newWallet=():Wallet=>({version:1,testingGrant:1,balance:5555,items:{},equipped:[],hidden:false,rewards:[],receipts:[]});
+export const applyTestingGrant=(wallet:Wallet):Wallet=>wallet.testingGrant===1?wallet:{...wallet,balance:5555,testingGrant:1};
 export type Command = {type:'buy';item:ItemId;id:string} | {type:'reward';game:Game} | {type:'action';game:Game;action:Action} | {type:'equip';item:string} | {type:'hide';value:boolean};
 export function transact(wallet:Wallet,command:Command):Wallet {
   if(command.type==='buy') {

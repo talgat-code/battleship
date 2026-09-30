@@ -1,6 +1,23 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
 Язык|Тіл|Language
+Карты способностей|Қабілет карталары|Ability cards
+АРСЕНАЛ КОМАНДИРА|КОМАНДИР АРСЕНАЛЫ|COMMANDER'S ARSENAL
+Инвентарь аккаунта недоступен. Проверьте подключение.|Аккаунт заттары қолжетімсіз. Байланысты тексеріңіз.|Account inventory unavailable. Check your connection.
+Бой завершён. Карты доступны в следующей партии.|Ұрыс аяқталды. Карталар келесі ойында қолжетімді.|Battle finished. Cards are available next match.
+Ход противника — карты временно недоступны.|Қарсыластың кезегі — карталар уақытша қолжетімсіз.|Enemy turn — cards are temporarily unavailable.
+Выберите карту. Обычный выстрел не расходует карточку.|Карта таңдаңыз. Қалыпты атыс картаны жұмсамайды.|Choose a card. Regular shots do not consume cards.
+У вас пока нет карт. Купите их в магазине и вернитесь в этот бой.|Карталарыңыз жоқ. Дүкеннен сатып алып, осы ұрысқа оралыңыз.|You have no cards yet. Buy some in the shop and return to this battle.
+Бонус уже активен|Бонус белсенді|Bonus already active
+Недоступно сейчас|Қазір қолжетімсіз|Unavailable now
+Карта выбрана|Карта таңдалды|Card selected
+Готова к применению|Қолдануға дайын|Ready to use
+Прицеливание: наведите на верхнюю левую клетку области и нажмите на поле. На телефоне первое касание выбирает область, второе подтверждает.|Көздеу: аймақтың жоғарғы сол жақ торын көздеп, алаңды басыңыз. Телефонда бірінші түрту аймақты таңдайды, екіншісі растайды.|Aim at the area's top-left cell and click the board. On a phone, tap once to preview and again to confirm.
+Область выходит за край поля. Выберите другую клетку.|Аймақ алаң шетінен шығады. Басқа тор таңдаңыз.|Area crosses the board edge. Choose another cell.
+Второй шанс: следующий выстрел сохраняет ход.|Екінші мүмкіндік: келесі атыс кезекті сақтайды.|Second chance: the next shot keeps your turn.
+Перехват сигнала: контур корабля раскрыт, урон не нанесён.|Сигналды ұстау: кеме сұлбасы ашылды, зақым келтірілмеді.|Signal intercept: ship outline revealed without damage.
+Кракен: корабль потоплен.|Кракен: кеме батты.|Kraken: ship sunk.
+Глубинная бомба: попаданий — {0}, промахов — {1}.|Тереңдік бомбасы: тигені — {0}, мүлті — {1}.|Depth charge: hits — {0}, misses — {1}.
 Катер занимает одну клетку — поворот не меняет позицию.|Катер бір торды алады — бұру орнын өзгертпейді.|The patrol boat occupies one cell — rotation does not change its position.
 Партия изменена в другой вкладке. Обновите страницу.|Ойын басқа қойындыда өзгерді. Бетті жаңартыңыз.|The match changed in another tab. Reload the page.
 Не удалось сохранить язык в профиле. Выбор сохранён на устройстве.|Тіл профильде сақталмады. Таңдау құрылғыда сақталды.|Could not save language to profile. Your choice is saved on this device.

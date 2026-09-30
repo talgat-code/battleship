@@ -2,6 +2,7 @@ import { tr, t } from './i18n';
 import { useEffect, useState, useRef } from 'react';
 import { Anchor, ArrowRight, Crosshair, RotateCw, Shuffle, Radio, Shield, Waves, RotateCcw, Check, Info, Trophy, Activity, Cpu } from 'lucide-react';
 import { LanguageSwitch } from './i18n';
+import AbilityPanel from './shop/AbilityPanel';
 import { useWallet, savedGame, saveGame } from './shop/store';
 import { catalog } from './shop/catalog';
 import { rotatePlaced, area, resolveAction, type Card } from './abilities';
@@ -23,6 +24,10 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
   const {wallet,run,busy,ready:walletReady,error:walletError}=useWallet(userId);
   const [card,setCard]=useState<Card|null>(null);
   const [target,setTarget]=useState<Cell|null>(null);
+  const [abilityError,setAbilityError]=useState('');
+  const [liveAbility,setLiveAbility]=useState<Game['ability']>();
+  const [cooldown,setCooldown]=useState(false);
+  const blockClickUntil=useRef(0);
   const [rotated,setRotated]=useState<number|null>(null);
   const [emotion,setEmotion]=useState('');
   const actionGate=useRef(false);
@@ -88,12 +93,19 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
     setNotice(ships===game.player.ships?'Поворот невозможен: рядом нет свободного места.':'Корабль повёрнут.');
     if(ships!==game.player.ships)setGame({...game,player:{...game.player,ships}});
   }
-  async function applyCard() {
-    if(!card||actionGate.current)return;actionGate.current=true;
-    try{const result=await run({type:'action',game,action:{type:'card',card,cell:target||undefined,id:crypto.randomUUID()}});
-      if(result?.game){setGame(result.game);if(card==='sonar')sonarPing();setCard(null);setTarget(null);}
+  function showEnemy(){requestAnimationFrame(()=>document.querySelector('.enemy-card .board')?.scrollIntoView({behavior:'auto',block:'center'}));}
+  async function applyCard(cell?:Cell) {
+    if(!card||actionGate.current||Date.now()<blockClickUntil.current)return;
+    if((card==='sonar'||card==='bomb')&&(!cell||!area(cell,card==='sonar'?3:2).every(c=>c.x>=0&&c.x<10&&c.y>=0&&c.y<10))){setAbilityError('Область выходит за край поля. Выберите другую клетку.');return;}
+    actionGate.current=true;setAbilityError('');
+    try{const result=await run({type:'action',game,action:{type:'card',card,cell,id:crypto.randomUUID()}});
+      if(result?.game){blockClickUntil.current=Date.now()+650;setCooldown(true);setGame(result.game);setLiveAbility(result.game.ability);sonarPing(card);setCard(null);setTarget(null);showEnemy();}
     }finally{actionGate.current=false;}
   }
+  function cancelCard(){if(actionGate.current)return;setCard(null);setTarget(null);setAbilityError('');}
+  useEffect(()=>{const cancel=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();cancelCard();}};window.addEventListener('keydown',cancel);return()=>window.removeEventListener('keydown',cancel);},[]);
+  useEffect(()=>{if(!liveAbility)return;const timer=setTimeout(()=>setLiveAbility(undefined),3400);return()=>clearTimeout(timer);},[liveAbility]);
+  useEffect(()=>{if(!cooldown)return;const timer=setTimeout(()=>setCooldown(false),650);return()=>clearTimeout(timer);},[cooldown]);
   function start() { setGame({ ...game, difficulty, phase: 'battle' }); setHover(null); setNotice(''); setField('bot'); }
   function rotate() {
     if (!setup) return;
@@ -110,7 +122,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
   const playerLost = game.player.ships.filter(s => isSunk(s, game.player.shots)).length;
   const enemyLost = game.bot.ships.filter(s => isSunk(s, game.bot.shots)).length;
   const lastLog = game.log[0] || '';
-  const lastResult = lastLog.includes('потоплен') ? 'sunk' : lastLog.includes('попадание') ? 'hit' : lastLog ? 'miss' : 'waiting';
+  const lastResult = lastLog.includes('потоплен') ? 'sunk' : lastLog.includes('попадание') ? 'hit' : catalog.some(i=>i.kind==='card'&&lastLog.startsWith(i.name)) ? 'ability' : lastLog ? 'miss' : 'waiting';
   const title = setup ? 'Разверните свой флот' : finished ? game.winner === 'player' ? 'Сектор под контролем' : 'Операция завершена' : 'Держите противника на прицеле';
   const status = setup ? ready ? 'Флот готов к выходу' : 'Подготовка к операции' : finished ? game.winner === 'player' ? 'Победа, командир' : 'Ваш флот уничтожен' : game.turn === 'player' ? 'Ваш ход, командир' : 'Ход бота · противник стреляет';
 
@@ -124,7 +136,6 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
       <div className="account-bar"><span>{tr(userId ? 'Личный флот · история в профиле' : 'Гостевой флот · сохранение на устройстве')}</span><button className="button secondary" onClick={onAccount}>{tr(accountLabel)}</button></div>
       {tr(walletError && <p role="alert" className="account-notice">{tr(walletError)}</p>)}{tr(syncNotice && <p className="account-notice" role="status">{tr(syncNotice)}</p>)}
       <section className="difficulty-panel" aria-label={t("Сложность бота")}>{tr(setup ? <><label>{t("Сложность бота ")}<select aria-label={t("Сложность бота")} value={difficulty} onChange={e=>{const value=e.target.value as Difficulty;setPreferredDifficulty(value);setGame(g=>({...g,difficulty:value}));try{localStorage.setItem('fleet:difficulty',value);}catch{}}}>{tr(Object.entries(LEVELS).map(([key,v])=><option key={key} value={key}>{tr(v.name)}</option>))}</select></label><p>{tr(LEVELS[difficulty].description)}</p><details><summary>{t("Чем отличаются уровни")}</summary>{tr(Object.values(LEVELS).map(v=><p key={v.name}><b>{tr(v.name)}:</b> {tr(v.description)}</p>))}</details></> : <span>{t("Противник: ")}<b>{tr(LEVELS[difficulty].name)}</b></span>)}</section>
-      {tr(setup && <section className="mode-panel"><label>{t("Режим боя ")}<select aria-label={t("Режим боя")} value={game.mode||'classic'} onChange={e=>setGame({...game,mode:e.target.value as 'classic'|'boosted'})}><option value="classic">{t("Классический бой")}</option><option value="boosted">{t("Бой с усилениями")}</option></select></label><p>{tr(game.mode==='boosted'?'Купленные карты доступны только в ваш ход.':'Классические правила, без карточек.')}</p></section>)}
       {tr(help && <div className="settings-panel"><LanguageSwitch/><label><input type="checkbox" checked={wallet.hidden} onChange={e=>void run({type:'hide',value:e.target.checked})}/>{t(" Скрыть эмоции")}</label></div>)}
       <section className="page-heading"><div><div className="eyebrow"><span />{t(" СУМЕРЕЧНЫЙ АРХИПЕЛАГ ")}<span className="operation-number">{t("/ СЕКТОР 10")}</span></div><h1>{tr(title)}<span>.</span></h1><p>{t("За скалами собирается гроза. Маяк ещё держит курс.")}</p></div><div className="weather-readout" aria-hidden="true"><Waves size={30} /><span>{t("СЕВЕРНЫЙ ТИХИЙ ОКЕАН")}<b>19:42 <i> / </i>{t(" СИНИЙ ЧАС")}</b></span></div><button className="button secondary new-game" onClick={() => setConfirm(true)}><RotateCcw size={16} />{t(" Новая игра")}</button></section>
       {tr(help && <section className="help-panel"><h2>{t("Приказ командования")}</h2><p>{t("Разместите 10 кораблей, оставляя между ними клетку, включая диагонали. Корабль занимает клетки вправо или вниз от выбранной. Попадание сохраняет ход, промах передаёт его. Уничтожьте весь флот противника для победы. На сенсорном экране сначала выберите клетку, затем подтвердите действие кнопкой под полем. «Крупные клетки» увеличивают поле; его можно сдвигать в сторону.")}</p></section>)}
@@ -136,11 +147,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
       {tr(!setup && <section className="ability-panel">
         {tr(finished && <p className="reward-notice">{tr(wallet.rewards.includes(game.matchId||'') ? `Награда за партию: +${game.winner==='player'?80:35} жетонов` : 'Награда ожидает сохранения.')}</p>)}
         {tr(!wallet.hidden && <div className="emotion-panel">{tr(wallet.equipped.map(id=>{const item=catalog.find(i=>i.id===id)!;return <button className="button" key={id} onClick={()=>setEmotion(item.name)}>{tr(item.icon)} {tr(item.name)}</button>;}))}{tr(emotion&&<span className="emotion-bubble" role="status">{tr(emotion)}</span>)}</div>)}
-        {tr(!finished && game.mode==='boosted' && <><div className="card-buttons">{tr(catalog.filter(i=>i.kind==='card').map(i=><button key={i.id} className="button secondary" disabled={!walletReady||busy||game.turn!=='player'||!wallet.items[i.id]} aria-pressed={card===i.id} onClick={()=>{setCard(i.id as Card);setTarget(null);setField('bot');}}>{tr(i.icon)} {tr(i.name)} ×{tr(wallet.items[i.id]||0)}</button>))}</div>
-          {tr(card&&<div className="ability-confirm"><strong>{tr(catalog.find(i=>i.id===card)!.name)}</strong><p>{tr(catalog.find(i=>i.id===card)!.description)}</p><p>{tr(card==='sonar'||card==='bomb'?'Выберите верхнюю левую клетку области, затем подтвердите применение.':'Нажмите «Применить карту» для подтверждения.')}</p><button className="button primary" disabled={busy||game.turn!=='player'||((card==='sonar'||card==='bomb')&&!target)} onClick={()=>void applyCard()}>{t("Применить карту")}</button><button className="button" disabled={busy} onClick={()=>{setCard(null);setTarget(null);}}>{t("Отмена")}</button></div>)}
-          {tr(game.bonus&&<p role="status">{t("Бонус активен: следующий выстрел сохраняет ход.")}</p>)}
-          {tr(game.ability&&<p role="status">{tr(game.ability.card==='sonar'?`Гидролокатор: непоражённых сегментов — ${game.ability.count}`:`Применено: ${catalog.find(i=>i.id===game.ability!.card)!.name}`)}</p>)}
-        </>)}
+        <AbilityPanel game={game} wallet={wallet} ready={walletReady} busy={busy||cooldown} card={card} onSelect={id=>{setCard(id);setTarget(null);setAbilityError('');setField('bot');if(id==='sonar'||id==='bomb')showEnemy();}} onCancel={cancelCard} onApply={()=>void applyCard()} onShop={onShop} error={abilityError||walletError}/>
       </section>)}
       <div className="workspace">
         <section className="fields-panel">
@@ -152,7 +159,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
               <Board data={game.player} active={setup} rotateOnTouch={setup} onCell={deploy} onHover={setHover} preview={rotated!==null?game.player.ships.find(s=>s.id===rotated)?.cells||preview:preview} valid={rotated!==null||canPlace(game.player.ships, preview)} label="Ваше поле" moving={moving} />
               <div className="board-caption"><span className="tiny-dot teal-dot" />{tr(setup ? 'Выберите позицию для корабля' : `${10 - playerLost} кораблей в строю`)}<span>{t("СЕКТОР A–10")}</span></div></article>)}
             {tr((!narrow || field === 'bot') && <article className="field-card enemy-card"><div className="field-heading"><div><span className="field-emblem"><Crosshair size={20} /></span><div><small>{t("АКВАТОРИЯ БРАВО")}</small><h2>{t("Противник")}</h2></div></div><span className="tag">{tr(setup ? 'НЕТ КОНТАКТА' : finished ? 'БОЙ ЗАВЕРШЁН' : 'ЗОНА ПОИСКА')}</span></div>
-              <Board data={game.bot} enemy revealed={game.revealed} ability={game.ability} allowUsed={!!card} preview={target&&card&&(card==='sonar'||card==='bomb')?area(target,card==='sonar'?3:2):[]} valid={!target||!card||area(target,card==='sonar'?3:2).every(c=>c.x<10&&c.y<10)} active={game.phase === 'battle' && game.turn === 'player' && !busy} onCell={c => {if(card)setTarget(c);else setGame(g => resolveAction(g,{type:'shoot',cell:c}));}} label="Поле противника" moving={moving} />
+              <Board data={game.bot} enemy revealed={game.revealed} ability={liveAbility} targeting={card==='sonar'||card==='bomb'} onHover={c=>{if(card==='sonar'||card==='bomb')setTarget(c);}} allowUsed={!!card} preview={target&&card&&(card==='sonar'||card==='bomb')?area(target,card==='sonar'?3:2):[]} valid={!target||!card||area(target,card==='sonar'?3:2).every(c=>c.x<10&&c.y<10)} active={game.phase === 'battle' && game.turn === 'player' && !busy && !cooldown} onCell={c => {if(actionGate.current||Date.now()<blockClickUntil.current)return;if(card){if(card==='sonar'||card==='bomb')void applyCard(c);}else setGame(g => resolveAction(g,{type:'shoot',cell:c}));}} label="Поле противника" moving={moving} />
               <div className="board-caption"><span className="tiny-dot orange-dot" />{tr(setup ? 'Ожидание начала операции' : finished ? 'Операция завершена' : game.turn === 'player' ? 'Выберите цель для выстрела' : 'Ожидайте своего хода')}<span>{t("СЕКТОР B–10")}</span></div></article>)}
           </div>
           <div className="legend"><span><i className="legend-ship" />{t(" Ваш корабль")}</span><span><i className="legend-miss" />{t(" Промах")}</span><span><b>✦</b>{t(" Попадание")}</span><span><i className="legend-sunk">×</i>{t(" Потоплен")}</span><span className="view-label"><Waves size={15} />{t(" ТАКТИЧЕСКИЙ ВИД")}</span></div>
@@ -173,7 +180,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
           </> : <>
             {tr(finished && <div className={`victory-card ${game.winner === 'bot' ? 'defeat' : ''}`}><Trophy size={36} /><strong>{tr(game.winner === 'player' ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ')}</strong><p>{tr(game.winner === 'player' ? 'Флот противника уничтожен. Море под вашим контролем.' : 'Противник взял сектор. Новая операция — новый шанс.')}</p><button className="button primary start" onClick={reset}>{t("Новая операция ")}<ArrowRight size={17} /></button></div>)}
             <div className="fleet-health"><div><span>{t("Ваш флот")}</span><b>{tr(10 - playerLost)} / 10</b></div><div className="health-segments">{tr(Array.from({ length: 10 }, (_, i) => <i key={i} className={i < 10 - playerLost ? 'alive' : ''} />))}</div><div><span>{t("Флот противника")}</span><b>{tr(10 - enemyLost)} / 10</b></div><div className="health-segments enemy-health">{tr(Array.from({ length: 10 }, (_, i) => <i key={i} className={i < 10 - enemyLost ? 'alive' : ''} />))}</div></div>
-            <details className="log-details" open={!narrow}><summary>{t("Журнал боя ")}<span>{tr(game.player.shots.length + game.bot.shots.length)}{t(" выстрелов")}</span></summary><div className="battle-log">{tr(game.log.length ? game.log.map((l, i) => <p key={`${game.player.shots.length + game.bot.shots.length}-${i}`} className={l.includes('мимо') ? 'log-miss' : 'log-hit'}><span>{tr(String(game.player.shots.length + game.bot.shots.length - i).padStart(2, '0'))}</span>{tr(l)}</p>) : <p>{t("Флот на позиции. Ожидаем первый выстрел.")}</p>)}</div></details>
+            <details className="log-details" open={!narrow}><summary>{t("Журнал боя ")}<span>{tr(game.player.shots.length + game.bot.shots.length)}{t(" выстрелов")}</span></summary><div className="battle-log">{tr(game.log.length ? game.log.map((l, i) => <p key={`${game.player.shots.length + game.bot.shots.length}-${i}`} className={l.includes('мимо') ? 'log-miss' : 'log-hit'}><span>{tr(String(game.log.length - i).padStart(2, '0'))}</span>{tr(l)}</p>) : <p>{t("Флот на позиции. Ожидаем первый выстрел.")}</p>)}</div></details>
           </>)}
           <div className="command-note"><Shield size={18} /><span>{tr(setup ? '10 кораблей · 20 клеток\nОдин флот. Одна цель.' : 'Попадание даёт ещё один ход. Промах передаёт ход противнику.')}</span></div>
         </aside>

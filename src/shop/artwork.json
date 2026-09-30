@@ -1,1 +1,7 @@
-{}
+{
+  "sonar": "/assets/shop/sonar.png",
+  "chance": "/assets/shop/chance.png",
+  "signal": "/assets/shop/signal.png",
+  "bomb": "/assets/shop/bomb.png",
+  "kraken": "/assets/shop/kraken.png"
+}

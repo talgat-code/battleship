@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { newWallet, transact } from './economy';
+import { newWallet, applyTestingGrant, transact } from './economy';
 import { resolveAction, rotatePlaced, type Card } from '../abilities';
 import { cellsFor, freshGame, isSunk, same, type Game } from '../game';
 function battle():Game { return {...freshGame(),matchId:'match-1',mode:'boosted',phase:'battle',bot:{ships:[{id:0,length:4,cells:cellsFor({x:0,y:0},4,false)},{id:6,length:1,cells:[{x:8,y:8}]}],shots:[]}}; }
 const action=(card:Card,cell={x:0,y:0})=>({type:'card' as const,card,cell,id:'use-1'});
 describe('wallet and inventory',()=>{
-  it('grants 350 once, charges exact prices, deduplicates a retried purchase and rejects insufficient funds',()=>{
-    const first=transact(newWallet(),{type:'buy',item:'sonar',id:'p1'});
+  it('charges exact prices, deduplicates a retried purchase and rejects insufficient funds',()=>{
+    const first=transact({...newWallet(),balance:350},{type:'buy',item:'sonar',id:'p1'});
     expect(first.balance).toBe(170);expect(first.items.sonar).toBe(1);
     expect(transact(first,{type:'buy',item:'sonar',id:'p1'})).toBe(first);
     expect(()=>transact(first,{type:'buy',item:'sonar',id:'p2'})).toThrow();
@@ -14,7 +14,7 @@ describe('wallet and inventory',()=>{
     expect(()=>transact(emotion,{type:'buy',item:'laugh',id:'p4'})).toThrow();
   });
   it('does not reward abandoned games and rewards each finished result once across serialization',()=>{
-    const wallet=newWallet();expect(transact(wallet,{type:'reward',game:battle()})).toBe(wallet);
+    const wallet={...newWallet(),balance:350};expect(transact(wallet,{type:'reward',game:battle()})).toBe(wallet);
     const game={...battle(),phase:'finished' as const,winner:'player' as const};
     const win=transact(wallet,{type:'reward',game});expect(win.balance).toBe(430);
     expect(transact(JSON.parse(JSON.stringify(win)),{type:'reward',game}).balance).toBe(430);
@@ -57,8 +57,8 @@ describe('card authority',()=>{
     const g=battle();g.bot.ships=g.bot.ships.slice(0,1);
     const next=resolveAction(g,action('kraken'));expect(next.bot.shots).toHaveLength(4);expect(isSunk(next.bot.ships[0],next.bot.shots)).toBe(true);expect(next.winner).toBe('player');expect(next.phase).toBe('finished');
   });
-  it('rejects abilities in classic, setup, finished and enemy turns',()=>{
-    for(const g of [{...battle(),mode:'classic' as const},{...battle(),phase:'setup' as const},{...battle(),phase:'finished' as const},{...battle(),turn:'bot' as const}])for(const card of ['sonar','chance','signal','bomb','kraken'] as Card[])expect(resolveAction(g,action(card))).toBe(g);
+  it('rejects abilities in setup, finished and enemy turns',()=>{
+    for(const g of [{...battle(),phase:'setup' as const},{...battle(),phase:'finished' as const},{...battle(),turn:'bot' as const}])for(const card of ['sonar','chance','signal','bomb','kraken'] as Card[])expect(resolveAction(g,action(card))).toBe(g);
   });
 });
 describe('placed ship rotation',()=>{
@@ -70,4 +70,26 @@ describe('placed ship rotation',()=>{
     const ships=[{id:0,length:4,cells:cellsFor({x:0,y:0},4,false)},...Array.from({length:5},(_,i)=>({id:i+1,length:1,cells:[{x:i,y:2}]}))];
     expect(rotatePlaced(ships,0)).toBe(ships);
   });
+});
+
+it('sets the testing balance once and retains inventory and later spending',()=>{
+expect(newWallet().balance).toBe(5555);
+const old={...newWallet(),testingGrant:undefined,balance:10,items:{sonar:2}};
+const upgraded=applyTestingGrant(old);expect(upgraded.balance).toBe(5555);expect(upgraded.items.sonar).toBe(2);
+const spent=transact(upgraded,{type:'buy',item:'kraken',id:'testing-buy'});
+expect(applyTestingGrant(JSON.parse(JSON.stringify(spent))).balance).toBe(4755);
+});
+
+it('old classic saves accept purchased cards; ordinary shots remain ordinary',()=>{const g={...battle(),mode:'classic' as const};const next=transact({...newWallet(),items:{sonar:1}},{type:'action',game:g,action:action('sonar')});expect(next.items.sonar).toBe(0);expect(next.game?.ability?.count).toBe(3);expect(next.game?.turn).toBe('player');expect(next.game?.log[0]).toContain('3');});
+it('invalid and unavailable card targets keep inventory; bomb misses pass the turn',()=>{
+  const wallet={...newWallet(),items:{bomb:1,signal:1}};
+  expect(()=>transact(wallet,{type:'action',game:battle(),action:action('bomb',{x:9,y:9})})).toThrow();expect(wallet.items.bomb).toBe(1);
+  const next=transact(wallet,{type:'action',game:battle(),action:action('bomb',{x:5,y:5})});expect(next.items.bomb).toBe(0);expect(next.game?.turn).toBe('bot');expect(next.game?.ability?.misses).toBe(4);
+  const known={...battle(),revealed:[0,6]};expect(()=>transact(wallet,{type:'action',game:known,action:action('signal')})).toThrow();expect(wallet.items.signal).toBe(1);
+});
+it('second chance and card inventory survive saving without creating endless bonus turns',()=>{
+  const armed=transact({...newWallet(),items:{chance:1}},{type:'action',game:battle(),action:action('chance')});
+  const restored=JSON.parse(JSON.stringify(armed));expect(restored.items.chance).toBe(0);
+  const hit=resolveAction(restored.game,{type:'shoot',cell:{x:0,y:0}});expect(hit.turn).toBe('player');expect(hit.bonus).toBe(false);
+  expect(resolveAction(hit,{type:'shoot',cell:{x:7,y:7}}).turn).toBe('bot');
 });
