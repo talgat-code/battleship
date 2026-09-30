@@ -64,3 +64,5 @@ export function useShotSound(shots: number) {
     previous.current = shots;
   }, [shots, shoot]);
 }
+
+export const useSound = () => useContext(Sound);

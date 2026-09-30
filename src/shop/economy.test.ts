@@ -5,13 +5,18 @@ import { cellsFor, freshGame, isSunk, same, type Game } from '../game';
 function battle():Game { return {...freshGame(),matchId:'match-1',mode:'boosted',phase:'battle',bot:{ships:[{id:0,length:4,cells:cellsFor({x:0,y:0},4,false)},{id:6,length:1,cells:[{x:8,y:8}]}],shots:[]}}; }
 const action=(card:Card,cell={x:0,y:0})=>({type:'card' as const,card,cell,id:'use-1'});
 describe('wallet and inventory',()=>{
+  it('free emotions leave legacy purchases, currency and equipped preferences intact',()=>{
+    const legacy={...newWallet(),balance:17,items:{laugh:1,sonar:3},equipped:['laugh'],receipts:['old-purchase']};
+    for(const item of ['laugh','salute','oops','luck','storm','gg'] as const)expect(transact(legacy,{type:'buy',item,id:'new'})).toBe(legacy);
+  });
   it('charges exact prices, deduplicates a retried purchase and rejects insufficient funds',()=>{
     const first=transact({...newWallet(),balance:350},{type:'buy',item:'sonar',id:'p1'});
     expect(first.balance).toBe(170);expect(first.items.sonar).toBe(1);
     expect(transact(first,{type:'buy',item:'sonar',id:'p1'})).toBe(first);
     expect(()=>transact(first,{type:'buy',item:'sonar',id:'p2'})).toThrow();
     const emotion=transact(first,{type:'buy',item:'laugh',id:'p3'});
-    expect(()=>transact(emotion,{type:'buy',item:'laugh',id:'p4'})).toThrow();
+    expect(emotion).toBe(first);
+    expect(transact(emotion,{type:'buy',item:'laugh',id:'p4'})).toBe(first);
   });
   it('does not reward abandoned games and rewards each finished result once across serialization',()=>{
     const wallet={...newWallet(),balance:350};expect(transact(wallet,{type:'reward',game:battle()})).toBe(wallet);

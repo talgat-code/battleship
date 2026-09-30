@@ -4,6 +4,7 @@ import { Anchor, ArrowRight, Crosshair, RotateCw, Shuffle, Radio, Shield, Waves,
 import { LanguageSwitch } from './i18n';
 import AbilityPanel from './shop/AbilityPanel';
 import { useWallet, savedGame, saveGame } from './shop/store';
+import EmotionBar from './emotions/EmotionBar';
 import { catalog } from './shop/catalog';
 import { rotatePlaced, area, resolveAction, type Card } from './abilities';
 import { sonarPing } from './shop/sound';
@@ -29,9 +30,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
   const [cooldown,setCooldown]=useState(false);
   const blockClickUntil=useRef(0);
   const [rotated,setRotated]=useState<number|null>(null);
-  const [emotion,setEmotion]=useState('');
   const actionGate=useRef(false);
-  useEffect(()=>{if(!emotion)return;const id=setTimeout(()=>setEmotion(''),2200);return()=>clearTimeout(id);},[emotion]);
   const [game, setGame] = useState<Game>(() => savedGame(userId) || load(storageKey));
   useEffect(()=>{if(walletReady&&wallet.game?.matchId===game.matchId&&wallet.game?.ability?.id&&wallet.game.ability.id!==game.ability?.id)setGame(wallet.game);},[walletReady]);
   const [preferredDifficulty, setPreferredDifficulty] = useState<Difficulty>(() => { try { const v = localStorage.getItem('fleet:difficulty'); return validDifficulty(v) ? v : 'tactician'; } catch { return 'tactician'; } });
@@ -146,7 +145,6 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
       </section>
       {tr(!setup && <section className="ability-panel">
         {tr(finished && <p className="reward-notice">{tr(wallet.rewards.includes(game.matchId||'') ? `Награда за партию: +${game.winner==='player'?80:35} жетонов` : 'Награда ожидает сохранения.')}</p>)}
-        {tr(!wallet.hidden && <div className="emotion-panel">{tr(wallet.equipped.map(id=>{const item=catalog.find(i=>i.id===id)!;return <button className="button" key={id} onClick={()=>setEmotion(item.name)}>{tr(item.icon)} {tr(item.name)}</button>;}))}{tr(emotion&&<span className="emotion-bubble" role="status">{tr(emotion)}</span>)}</div>)}
         <AbilityPanel game={game} wallet={wallet} ready={walletReady} busy={busy||cooldown} card={card} onSelect={id=>{setCard(id);setTarget(null);setAbilityError('');setField('bot');if(id==='sonar'||id==='bomb')showEnemy();}} onCancel={cancelCard} onApply={()=>void applyCard()} onShop={onShop} error={abilityError||walletError}/>
       </section>)}
       <div className="workspace">
@@ -159,7 +157,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
               <Board data={game.player} active={setup} rotateOnTouch={setup} onCell={deploy} onHover={setHover} preview={rotated!==null?game.player.ships.find(s=>s.id===rotated)?.cells||preview:preview} valid={rotated!==null||canPlace(game.player.ships, preview)} label="Ваше поле" moving={moving} />
               <div className="board-caption"><span className="tiny-dot teal-dot" />{tr(setup ? 'Выберите позицию для корабля' : `${10 - playerLost} кораблей в строю`)}<span>{t("СЕКТОР A–10")}</span></div></article>)}
             {tr((!narrow || field === 'bot') && <article className="field-card enemy-card"><div className="field-heading"><div><span className="field-emblem"><Crosshair size={20} /></span><div><small>{t("АКВАТОРИЯ БРАВО")}</small><h2>{t("Противник")}</h2></div></div><span className="tag">{tr(setup ? 'НЕТ КОНТАКТА' : finished ? 'БОЙ ЗАВЕРШЁН' : 'ЗОНА ПОИСКА')}</span></div>
-              <Board data={game.bot} enemy revealed={game.revealed} ability={liveAbility} targeting={card==='sonar'||card==='bomb'} onHover={c=>{if(card==='sonar'||card==='bomb')setTarget(c);}} allowUsed={!!card} preview={target&&card&&(card==='sonar'||card==='bomb')?area(target,card==='sonar'?3:2):[]} valid={!target||!card||area(target,card==='sonar'?3:2).every(c=>c.x<10&&c.y<10)} active={game.phase === 'battle' && game.turn === 'player' && !busy && !cooldown} onCell={c => {if(actionGate.current||Date.now()<blockClickUntil.current)return;if(card){if(card==='sonar'||card==='bomb')void applyCard(c);}else setGame(g => resolveAction(g,{type:'shoot',cell:c}));}} label="Поле противника" moving={moving} />
+              <Board controls={!setup&&<EmotionBar hidden={wallet.hidden}/>} data={game.bot} enemy revealed={game.revealed} ability={liveAbility} targeting={card==='sonar'||card==='bomb'} onHover={c=>{if(card==='sonar'||card==='bomb')setTarget(c);}} allowUsed={!!card} preview={target&&card&&(card==='sonar'||card==='bomb')?area(target,card==='sonar'?3:2):[]} valid={!target||!card||area(target,card==='sonar'?3:2).every(c=>c.x<10&&c.y<10)} active={game.phase === 'battle' && game.turn === 'player' && !busy && !cooldown} onCell={c => {if(actionGate.current||Date.now()<blockClickUntil.current)return;if(card){if(card==='sonar'||card==='bomb')void applyCard(c);}else setGame(g => resolveAction(g,{type:'shoot',cell:c}));}} label="Поле противника" moving={moving} />
               <div className="board-caption"><span className="tiny-dot orange-dot" />{tr(setup ? 'Ожидание начала операции' : finished ? 'Операция завершена' : game.turn === 'player' ? 'Выберите цель для выстрела' : 'Ожидайте своего хода')}<span>{t("СЕКТОР B–10")}</span></div></article>)}
           </div>
           <div className="legend"><span><i className="legend-ship" />{t(" Ваш корабль")}</span><span><i className="legend-miss" />{t(" Промах")}</span><span><b>✦</b>{t(" Попадание")}</span><span><i className="legend-sunk">×</i>{t(" Потоплен")}</span><span className="view-label"><Waves size={15} />{t(" ТАКТИЧЕСКИЙ ВИД")}</span></div>

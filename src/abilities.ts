@@ -1,3 +1,4 @@
+import {sunkPerimeter} from './sunkPerimeter';
 import { canPlace, cellsFor, fire, inside, isSunk, same, type Cell, type Game, type Ship } from './game';
 export const CARDS = ['sonar','chance','signal','bomb','kraken'] as const;
 export type Card = typeof CARDS[number];
@@ -35,6 +36,7 @@ export function area(origin: Cell, size: number): Cell[] {
 // Local solo authority. UI submits intent only; a future multiplayer server implements this boundary.
 export function resolveAction(game: Game, action: Action, random = Math.random): Game {
   if(action.type==='shoot') {
+    if(sunkPerimeter(game.bot.shots).some(c=>same(c,action.cell)))return game;
     const next=fire(game,'player',action.cell);
     if(next===game)return game;
     return game.bonus ? {...next,bonus:false,turn:next.phase==='finished'?next.turn:'player'} : next;

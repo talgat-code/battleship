@@ -1,5 +1,6 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+Все шесть эмоций бесплатны и доступны в бою.|Барлық алты эмоция тегін және шайқаста қолжетімді.|All six emotions are free and available in battle.
 Логин|Логин|Username
 Логин или почта|Логин немесе пошта|Username or email
 Показать пароль|Құпиясөзді көрсету|Show password

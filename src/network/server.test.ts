@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { place,type Ship } from '../game';
 import type { Room,Ranking } from './api';
+import {sunkPerimeter} from '../sunkPerimeter';
 const host=randomUUID(),guest=randomUUID(),outsider=randomUUID();
 let db:PGlite;
 let fleet:Ship[]=[];
@@ -26,11 +27,36 @@ beforeAll(async()=>{
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema public,auth to anon,authenticated;`);
   await db.exec(readFileSync('supabase/migrations/202609300001_accounts.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/202609300002_shop.sql','utf8'));
   await db.exec(readFileSync('supabase/migrations/202609300004_duels.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/202609300006_free_emotions.sql','utf8'));
   for(const id of [host,guest,outsider])await db.query('insert into auth.users(id) values($1)',[id]);
 },30000);
 afterAll(async()=>{await db.close();});
 describe('PostgreSQL authority for friend matches',()=>{
+  it('keeps emotions free without overwriting historical purchases or card balances',async()=>{
+    const shop=async(command:unknown)=>(await as(host,'select public.fleet_shop($1::jsonb) result',[JSON.stringify(command)])).rows[0];
+    const before=await shop({type:'read'});
+    for(const item of ['laugh','salute','oops','luck','storm','gg'])expect(await shop({type:'buy',item,id:randomUUID()})).toEqual(before);
+    await expect(as(host,`select public.fleet_shop_before_free_emotions('{"type":"read"}')`)).rejects.toThrow();
+    const bought=await shop({type:'buy',item:'sonar',id:randomUUID()});
+    expect((bought as any).result.balance).toBe((before as any).result.balance-180);
+  });
+  it('sends only whitelisted reactions between participants with replay and spam protection',async()=>{
+    const room=await create();await rpc(guest,{type:'join',invite:room.invite});
+    const emote=async(user:string,command:unknown)=>(await as(user,'select public.fleet_emote($1::jsonb) result',[JSON.stringify(command)])).rows[0] as any;
+    const message={room:room.id,round:room.round,type:'send',event:randomUUID(),emotion:'salute'};
+    await emote(host,message);await emote(host,message);
+    expect((await emote(guest,{...message,type:'read'})).result.emotion).toBe('salute');
+    expect((await emote(host,{...message,type:'read'})).result).toBeNull();
+    await expect(emote(host,{...message,event:randomUUID()})).rejects.toThrow('Emotion cooldown');
+    await expect(emote(guest,{...message,emotion:'arbitrary text'})).rejects.toThrow('Invalid emotion');
+    await expect(emote(outsider,{...message,type:'read'})).rejects.toThrow('Room unavailable');
+    await expect(emote(outsider,message)).rejects.toThrow('Room unavailable');
+    await expect(emote(guest,{...message,round:2})).rejects.toThrow('Round changed');
+    await expect(as(guest,'select * from public.duel_emotions')).rejects.toThrow();
+    await expect(as(null,`select public.fleet_emote('{}')`)).rejects.toThrow();
+  });
   it('denies direct table access, helper RPCs, anonymous calls and outsider room reads',async()=>{
     const r=await create();
     for(const sql of ['select * from public.duel_rooms','select * from public.duel_results',`insert into public.duel_results(room,round,winner,loser) values('${r.id}',1,'${outsider}','${host}')`,`select public.duel_valid_fleet('[]')`])await expect(as(outsider,sql)).rejects.toThrow();
@@ -49,6 +75,11 @@ describe('PostgreSQL authority for friend matches',()=>{
     const other=await rpc(guest,{type:'read',id:r.id});expect(other.enemy.ships).toEqual([]);expect(other.opponentReady).toBe(true);
     await rpc(guest,cmd(r,'place',{fleet}));
     const hit=await rpc(host,cmd(r,'shoot',{x:0,y:0}));expect(hit.enemy.ships).toEqual([]);expect(hit.enemy.shots[0].result).toBe('hit');expect(hit.myTurn).toBe(true);
+    expect(sunkPerimeter(hit.enemy.shots)).toEqual([]);
+    for(const x of [1,2])await rpc(host,cmd(r,'shoot',{x,y:0}));
+    const sunk=await rpc(host,cmd(r,'shoot',{x:3,y:0}));
+    expect(sunk.enemy.ships).toHaveLength(1);expect(sunk.enemy.shots).toHaveLength(4);expect(sunk.myTurn).toBe(true);
+    expect(sunkPerimeter(sunk.enemy.shots)).toHaveLength(6);
     await expect(rpc(host,cmd(r,'place',{fleet}))).rejects.toThrow();
   });
   it('checks turns, bounds, repeated shots and request replay; scores once and requires two rematch votes',async()=>{

@@ -1,0 +1,20 @@
+.board-tools{flex-wrap:wrap;align-items:flex-start}
+.fleet-emotions{margin-left:auto;min-width:0;color:#e4eff3}
+.fleet-emotions-toolbar{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.fleet-emotions-toolbar .button{min-height:40px;padding:4px 8px;display:flex;align-items:center;gap:4px;font-size:11px}
+.fleet-emotions-toolbar img{width:28px;height:28px;object-fit:contain}
+.fleet-emotions-menu{width:264px;max-width:100%;padding:8px;background:#102838;border:1px solid #416070;border-radius:10px}
+.fleet-emotions-menu label{display:flex;align-items:center;gap:6px;font-size:12px}
+.fleet-emotions-menu small{display:block;font-size:11px;color:#b3cbd2;margin:6px 0}
+.fleet-emotions-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.fleet-emotions-picker button{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:4px;min-width:0;height:88px;padding:4px;border:1px solid #416070;border-radius:8px;background:#193a49;color:#fff;font-size:10px;cursor:pointer}
+.fleet-emotions-picker button:hover{border-color:#35d6cf;background:#205064}.fleet-emotions-picker button:disabled{opacity:.5;cursor:wait}
+.fleet-emotions-picker img{display:block;flex:none;width:56px;height:56px;object-fit:contain}
+.fleet-emotions-reaction{position:absolute;left:50%;top:50%;width:148px;max-width:48%;z-index:8;display:flex;align-items:center;flex-direction:column;pointer-events:none;transform:translate(-50%,-50%);animation:fleet-emotion-pop 2.1s both;filter:drop-shadow(0 4px 8px #061523b0)}
+.fleet-emotions-reaction *{pointer-events:none}
+.fleet-emotions-reaction img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain}
+.fleet-emotions-reaction span{font-size:11px;text-align:center;padding:4px 8px;background:#102838de;border-radius:8px;color:#fff}.fleet-emotions-reaction small{color:#bce7ed}
+@keyframes fleet-emotion-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}22%,76%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(.65)}}
+.cell.ruled-out{cursor:default}.cell .perimeter-cross{font-size:clamp(11px,1.5vw,18px);font-weight:400;color:#c8e4ec;opacity:.4;text-shadow:none;line-height:1}
+@media(max-width:650px){.fleet-emotions-menu{width:246px}.fleet-emotions-reaction{width:118px}.board-tools>span{flex:1;min-width:80px}}
+@media(prefers-reduced-motion:reduce){.fleet-emotions-reaction{animation:none}}

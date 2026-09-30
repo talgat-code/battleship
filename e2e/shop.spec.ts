@@ -38,19 +38,16 @@ test('guest language, full match, reward, purchase, boosted match and restore',a
   await page.reload();await expect(page.locator('.ability-outcome')).toContainText('Sonar: undamaged segments');
   await finish(page);await expect(page.locator('.reward-notice')).toContainText('Match reward:');
 });
-test('mobile Kazakh shop, permanent emote, insufficient tokens and no overflow',async({page})=>{
+test('mobile Kazakh card shop, free emotes, insufficient tokens and no overflow',async({page})=>{
   await page.addInitScript(()=>{const k='fleet:wallet:v1:guest';if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify({version:1,testingGrant:1,balance:350,items:{},equipped:[],hidden:false,rewards:[],receipts:[]}));});
   await page.setViewportSize({width:390,height:844});await page.goto('/');
   await page.locator('.language-switch').first().selectOption('kk');await page.getByRole('button',{name:'Дүкен',exact:true}).click();
-  const laugh=page.locator('.shop-item').filter({has:page.getByRole('heading',{name:'Ха-ха',exact:true})});
-  await laugh.getByRole('button',{name:'Сатып алу',exact:true}).click();await expect(laugh.getByRole('button',{name:'Сатып алынды',exact:true})).toBeDisabled();
-  await laugh.getByRole('button',{name:'Панельге қосу',exact:true}).click();await expect(laugh.getByRole('button',{name:'Панельден алу',exact:true})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'Карталар',exact:true}).click();await page.locator('.art-kraken').getByRole('button',{name:'Сатып алу',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('Жетон жеткіліксіз');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'artifacts/shop-kazakh-mobile.png',fullPage:true});
   await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','kk');
-  await page.getByRole('button',{name:'Дүкен',exact:true}).click();await expect(page.locator('.token-balance')).toContainText('250');
+  await page.getByRole('button',{name:'Дүкен',exact:true}).click();await expect(page.locator('.token-balance')).toContainText('350');
 });
 test('English screens contain no leftover Russian copy',async({page})=>{
   await page.goto('/');await page.locator('.language-switch').first().selectOption('en');

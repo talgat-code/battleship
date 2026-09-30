@@ -1,3 +1,5 @@
+import {sunkPerimeter} from './sunkPerimeter';
+import type {ReactNode} from 'react';
 import { tr, t, coordinateLetters } from './i18n';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -58,8 +60,8 @@ function Impact({ shot, lite }: { shot: Shot; lite: boolean }) {
     <group ref={burst}>{tr(Array.from({ length: lite ? 4 : 8 }, (_, i) => <mesh key={i}><icosahedronGeometry args={[1, 0]} /><meshBasicMaterial color={hit ? sunk && i % 2 ? '#77788e' : '#ffd187' : '#d0ffed'} transparent depthWrite={false} /></mesh>))}</group>
   </group>;
 }
-type Props = { targeting?:boolean; revealed?:number[]; ability?:AbilityEvent; allowUsed?:boolean; rotateOnTouch?:boolean; data: BoardData; enemy?: boolean; active: boolean; onCell: (c: Cell) => void; preview?: Cell[]; valid?: boolean; onHover?: (c: Cell | null) => void; label: string; moving: boolean };
-export default function Board({ targeting=false, revealed=[], ability, allowUsed=false, rotateOnTouch=false, data, enemy = false, active, onCell, preview = [], valid = true, onHover, label, moving }: Props) {
+type Props = { controls?:ReactNode; markSunk?:boolean; targeting?:boolean; revealed?:number[]; ability?:AbilityEvent; allowUsed?:boolean; rotateOnTouch?:boolean; data: BoardData; enemy?: boolean; active: boolean; onCell: (c: Cell) => void; preview?: Cell[]; valid?: boolean; onHover?: (c: Cell | null) => void; label: string; moving: boolean };
+export default function Board({ controls, targeting=false, revealed=[], ability, allowUsed=false, rotateOnTouch=false, data, enemy = false, markSunk=enemy, active, onCell, preview = [], valid = true, onHover, label, moving }: Props) {
   const touchTarget=useRef<Cell|null>(null);
   useEffect(()=>{touchTarget.current=null;setFocused(null);},[targeting,ability?.id]);
   const LETTERS=coordinateLetters();
@@ -82,11 +84,12 @@ export default function Board({ targeting=false, revealed=[], ability, allowUsed
   const [touchInput, setTouchInput] = useState(() => navigator.maxTouchPoints > 0);
   const touch = coarse || touchInput;
   const last = data.shots.at(-1);
-  const occupied = !allowUsed && focused && data.shots.some(s => same(s, focused));
+  const excluded = markSunk ? sunkPerimeter(data.shots) : [];
+  const occupied = !allowUsed && focused && (data.shots.some(s => same(s, focused)) || (!targeting && excluded.some(c=>same(c,focused))));
   const aim = active && focused && !occupied;
   return <div className="board-container" ref={host} data-quality={strained ? 'static-auto' : lite ? 'lite' : 'full'} data-animated={animated}>
     {ability&&<div className={`board-ability-message effect-${ability.card}`} key={ability.id}>{t(abilityMessage(ability))}</div>}
-    <div className="board-tools"><span><Crosshair size={14} />{tr(aim ? `${LETTERS[focused.x]}${focused.y + 1} · ${targeting ? 'Применить карту' : enemy ? 'цель выбрана' : valid ? 'позиция доступна' : 'нельзя разместить'}` : 'Сетка 10 × 10')}</span><button className="zoom-button" aria-pressed={zoom} onClick={() => setZoom(!zoom)}>{tr(zoom ? <Minimize2 size={14} /> : <Maximize2 size={14} />)}{tr(zoom ? 'Всё поле' : 'Крупные клетки')}</button></div>
+    <div className="board-tools"><span><Crosshair size={14} />{tr(aim ? `${LETTERS[focused.x]}${focused.y + 1} · ${targeting ? 'Применить карту' : enemy ? 'цель выбрана' : valid ? 'позиция доступна' : 'нельзя разместить'}` : 'Сетка 10 × 10')}</span><button className="zoom-button" aria-pressed={zoom} onClick={() => setZoom(!zoom)}>{tr(zoom ? <Minimize2 size={14} /> : <Maximize2 size={14} />)}{tr(zoom ? 'Всё поле' : 'Крупные клетки')}</button>{controls}</div>
     <div className={`board-scroll ${zoom ? 'zoomed' : ''}`} tabIndex={zoom ? 0 : -1} aria-label={tr(`${label}: область просмотра`)}>
       <div className={`board ${enemy ? 'enemy-board' : ''} ${active ? 'board-active' : ''}`} style={{ aspectRatio: PROJECTION.aspect }}>
         <div className="column-labels" style={{ top: `${(GRID.top - .055) * 100}%` }}>{tr([...LETTERS].map((l, i) => <span className={aim && focused.x === i ? 'coordinate-active' : ''} key={l}>{tr(l)}</span>))}</div>
@@ -106,13 +109,14 @@ export default function Board({ targeting=false, revealed=[], ability, allowUsed
           {tr(Array.from({ length: 100 }, (_, i) => {
             const c = { x: i % 10, y: Math.floor(i / 10) };
             const shot = data.shots.find(s => same(s, c));
+            const ruledOut = excluded.some(p=>same(p,c));
             const selected = preview.some(p => same(p, c));
             const isFocused = aim && same(focused, c);
-            return <button key={i} type="button" data-ship={data.ships.some(s=>(!enemy||isSunk(s,data.shots))&&s.cells.some(p=>same(p,c)))||undefined} aria-label={tr(`${label} ${LETTERS[c.x]}${c.y + 1}${shot ? ` ${shot.result === 'miss' ? 'мимо' : shot.result === 'sunk' ? 'потоплен' : 'попадание'}` : ''}`)} disabled={!active || (!!shot&&!allowUsed)} className={`cell ${enemy&&data.ships.some(s=>revealed.includes(s.id)&&!isSunk(s,data.shots)&&s.cells.some(p=>same(p,c)))?'revealed':''} ${shot?.result || ''} ${selected ? valid ? 'preview' : 'invalid' : ''} ${isFocused ? 'focused' : ''} ${last && same(last, c) ? 'last-shot' : ''}`}
+            return <button key={i} type="button" data-ship={data.ships.some(s=>(!enemy||isSunk(s,data.shots))&&s.cells.some(p=>same(p,c)))||undefined} aria-label={tr(`${label} ${LETTERS[c.x]}${c.y + 1}${shot ? ` ${shot.result === 'miss' ? 'мимо' : shot.result === 'sunk' ? 'потоплен' : 'попадание'}` : ''}`)} disabled={!active || (!!shot&&!allowUsed) || (ruledOut&&!targeting)} className={`cell ${ruledOut?'ruled-out':''} ${enemy&&data.ships.some(s=>revealed.includes(s.id)&&!isSunk(s,data.shots)&&s.cells.some(p=>same(p,c)))?'revealed':''} ${shot?.result || ''} ${selected ? valid ? 'preview' : 'invalid' : ''} ${isFocused ? 'focused' : ''} ${last && same(last, c) ? 'last-shot' : ''}`}
               onPointerDown={e => { if (e.pointerType === 'touch' || e.pointerType === 'pen') setTouchInput(true); }}
               onMouseEnter={() => { if (!touch) { setFocused(c); onHover?.(c); } }} onFocus={() => { setFocused(c); onHover?.(c); }}
               onClick={() => { setFocused(c); onHover?.(c); if(targeting&&touch){if(touchTarget.current&&same(touchTarget.current,c)){onCell(c);touchTarget.current=null;}else touchTarget.current=c;}else if (!touch || (rotateOnTouch && data.ships.some(s=>s.cells.some(p=>same(p,c))))) onCell(c); }}>
-              {tr(shot ? shot.result === 'miss' ? <i /> : <span>{tr(shot.result === 'sunk' ? '×' : '✦')}</span> : isFocused && enemy ? <Crosshair /> : null)}
+              {tr(shot ? shot.result === 'miss' ? <i /> : <span>{tr(shot.result === 'sunk' ? '×' : '✦')}</span> : ruledOut ? <span className="perimeter-cross" aria-hidden="true">&times;</span> : isFocused && enemy ? <Crosshair /> : null)}
             </button>;
           }))}
         </div>

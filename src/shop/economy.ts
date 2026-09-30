@@ -10,7 +10,7 @@ export function transact(wallet:Wallet,command:Command):Wallet {
     if(wallet.receipts.includes(command.id))return wallet;
     const item=catalog.find(i=>i.id===command.item);
     if(!item)throw Error('Неизвестный предмет.');
-    if(item.kind==='emotion'&&wallet.items[item.id])throw Error('Эмоция уже куплена.');
+    if(item.kind==='emotion')return wallet; // All emotions are default entitlements; retain legacy inventory.
     if(wallet.balance<item.price)throw Error('Недостаточно жетонов. Завершите ещё одну партию.');
     return {...wallet,balance:wallet.balance-item.price,items:{...wallet.items,[item.id]:(wallet.items[item.id]||0)+1},receipts:[...wallet.receipts,command.id]};
   }
