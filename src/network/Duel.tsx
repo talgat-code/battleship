@@ -1,4 +1,5 @@
 import EmotionBar from '../emotions/EmotionBar';
+import RoomChat from './RoomChat';
 import { useEffect,useRef,useState } from 'react';
 import Board from '../Board';
 import { FLEET,LETTERS,canPlace,cellsFor,place,randomFleet,type Cell,type Ship,type Game } from '../game';
@@ -42,18 +43,18 @@ export default function Duel({userId,onLeaders,onShop}:{userId:string;onLeaders:
     }else if(next.ready)setFleet(next.own.ships);
     current.current=next;roomId.current=next.id;setRoom(next);setConnected(true);
     const url=new URL(location.href);url.searchParams.delete('invite');url.searchParams.set('room',next.id);url.searchParams.set('view','friend');history.replaceState(null,'',url);
-    localStorage.setItem(`fleet:room:${userId}`,next.id);window.dispatchEvent(new Event('fleet:room'));
+    try{localStorage.setItem(`fleet:room:${userId}`,next.id);}catch{/* The URL still restores this server room. */}window.dispatchEvent(new Event('fleet:room'));
   }
   async function send(command:Command,durable=false){
     if(gate.current)return;gate.current=true;if(alive.current)setBusy(true);
     try{
-      if(durable){localStorage.setItem(pendingKey(userId),JSON.stringify(command));pending.current=command;}
+      if(durable){pending.current=command;try{localStorage.setItem(pendingKey(userId),JSON.stringify(command));}catch{}}
       const result=await duel(command);
-      if(durable){localStorage.removeItem(pendingKey(userId));pending.current=null;}
+      if(durable){pending.current=null;try{localStorage.removeItem(pendingKey(userId));}catch{}}
       accept(result);if(alive.current){setError('');if(command.type==='card'){setCard(null);setTarget(null);blockUntil.current=Date.now()+450;}}
     }catch(e){
       const code=(e as {code?:string}).code;
-      if(durable&&code&&(code==='P0001'||code.startsWith('22')||code.startsWith('23'))){localStorage.removeItem(pendingKey(userId));pending.current=null;}
+      if(durable&&code&&(code==='P0001'||code.startsWith('22')||code.startsWith('23'))){pending.current=null;try{localStorage.removeItem(pendingKey(userId));}catch{}}
       if(alive.current){setError(errorText(e));if(!code||!['P0001','22','23'].some(c=>code.startsWith(c)))setConnected(false);}
     }finally{gate.current=false;if(alive.current){setBusy(false);if(refreshNeeded.current){refreshNeeded.current=false;void refresh();}}}
   }
@@ -64,7 +65,7 @@ export default function Duel({userId,onLeaders,onShop}:{userId:string;onLeaders:
     if(reading.current){refreshNeeded.current=true;return;}
     reading.current=true;
     const requestedRoom=roomId.current;
-    try{const next=await duel({type:'read',id:requestedRoom});if(roomId.current===requestedRoom){accept(next);if(alive.current)setError('');}}catch(e){if(alive.current){setConnected(false);setError(errorText(e));}}finally{reading.current=false;if(alive.current&&refreshNeeded.current){refreshNeeded.current=false;void refresh();}}
+    try{const next=await duel({type:'read',id:requestedRoom});if(roomId.current===requestedRoom){accept(next);if(alive.current)setError('');}}catch(e){if(alive.current&&roomId.current===requestedRoom){setConnected(false);setError(errorText(e));}}finally{reading.current=false;if(alive.current&&refreshNeeded.current){refreshNeeded.current=false;void refresh();}}
   }
   const live=useConnection(room?.id,()=>void refresh(),!!room?.arsenal);
   useEffect(()=>{
@@ -100,7 +101,7 @@ export default function Duel({userId,onLeaders,onShop}:{userId:string;onLeaders:
   const recent=(event:Room['ability'])=>event&&Date.now()-(event.createdAt||0)<6000?event:undefined;
   const state=room?.status==='setup'&&room.ready?'Ожидание расстановки соперника':room?.status==='battle'?room.myTurn?'Ваш ход':'Ход соперника':room?statusText[room.status]:'Игра с другом';
   return <section className="duel-page"><div className="duel-heading"><div><small>СЕТЕВАЯ ОПЕРАЦИЯ</small><h1>{state}</h1></div><button className="button secondary" onClick={onLeaders}>Таблица лидеров</button></div>
-    <p>{room&&!room.arsenal?'Классический бой: 10 кораблей, без карт способностей. Попадание сохраняет ход.':'10 кораблей, попадание сохраняет ход. Доступные карты можно применить в свой ход.'}</p>
+    <p>{!room||!room.arsenal?'Классический бой: 10 кораблей, без карт способностей. Попадание сохраняет ход.':'10 кораблей, попадание сохраняет ход. Доступные карты можно применить в свой ход.'}</p>
     <p className="duel-connection" role="status" data-live={live}>{busy?'Отправка хода…':!connected?'Соединение потеряно · повторное подключение…':room&&!live?'Связь установлена · резервные обновления':room?.status==='battle'&&!room.myTurn?'Ожидание соперника':'Связь установлена'}{error&&<span role="alert"> · {error}</span>}</p>
     {!room?<><div className="duel-controls"><button className="button primary" disabled={busy||!!pending.current} onClick={()=>void send({type:'create',id:crypto.randomUUID()},true)}>Создать комнату</button>{invite&&<button className="button primary" disabled={busy||!!pending.current} onClick={()=>void send({type:'join',invite},true)}>Присоединиться по приглашению</button>}</div>
       <form className="duel-join" onSubmit={e=>{e.preventDefault();join();}}><label>Код или ссылка приглашения<input value={joinCode} onChange={e=>setJoinCode(e.target.value)} required/></label><button className="button secondary" disabled={busy}>Войти в комнату</button></form>
@@ -118,6 +119,7 @@ export default function Duel({userId,onLeaders,onShop}:{userId:string;onLeaders:
       </>}
       {room.status==='finished'&&<div className="duel-result"><h2>{room.won?'Победа!':'Поражение'}</h2><p>Результат записан сервером и учтён в таблице лидеров.</p><button className="button primary" disabled={busy||room.rematchRequested} onClick={()=>action('rematch')}>{room.rematchRequested?'Ожидаем согласия друга':room.opponentRematch?'Принять реванш':'Реванш'}</button></div>}
       {!!room.enemy.shots.length&&<p className="duel-last">Последний выстрел: {LETTERS[room.enemy.shots.at(-1)!.x]}{room.enemy.shots.at(-1)!.y+1} · {{miss:'промах',hit:'попадание',sunk:'потоплен'}[room.enemy.shots.at(-1)!.result]}</p>}
+      <RoomChat key={`${userId}:${room.id}`} roomId={room.id} userId={userId} opponent={room.opponent}/>
     </>}
   </section>;
 }

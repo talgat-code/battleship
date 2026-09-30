@@ -1,6 +1,7 @@
 import { test,expect, type Page } from '@playwright/test';
 import { chooseShot } from '../src/bot';
 import { STORAGE_KEY, freshGame, place, type Shot, type Ship } from '../src/game';
+import {sunkPerimeter} from '../src/sunkPerimeter';
 const walletKey='fleet:wallet:v1:guest';
 async function finish(page:Page){
   await page.clock.install();
@@ -8,7 +9,7 @@ async function finish(page:Page){
     const g=await page.evaluate(key=>{const v=JSON.parse(localStorage.getItem(key)!);return {phase:v.phase,turn:v.turn,shots:v.bot.shots as Shot[]};},STORAGE_KEY);
     if(g.phase==='finished')break;
     if(g.turn==='bot'){await page.clock.fastForward(1000);continue;}
-    const c=chooseShot(g.shots,'admiral');
+    const c=chooseShot([...g.shots,...sunkPerimeter(g.shots).map(c=>({...c,result:'miss' as const}))],'admiral');
     await page.getByRole('button',{name:`Enemy board ${'ABCDEFGHIJ'[c.x]}${c.y+1}`,exact:true}).click();
   }
   await expect(page.locator('.victory-card')).toBeVisible();

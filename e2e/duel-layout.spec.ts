@@ -11,6 +11,7 @@ for(const width of [1440,390])test(`duel layout: stationary grids and non-overla
   await page.route('**/rest/v1/rpc/fleet_duel',r=>r.fulfill({json:r.request().postDataJSON().command.type==='list'?[]:room}));
   await page.route('**/rest/v1/rpc/fleet_shop',r=>r.fulfill({json:room.arsenal}));
   await page.route('**/rest/v1/rpc/fleet_emote',r=>r.fulfill({json:null}));
+  await page.route('**/rest/v1/rpc/fleet_chat',r=>r.fulfill({json:{messages:[],ack:null}}));
   await page.goto(`/e2e/fixtures/duel.html?room=${room.id}`);
   const grids=page.locator('.cell-grid');await expect(grids).toHaveCount(2);
   const rects=()=>grids.evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height};}));

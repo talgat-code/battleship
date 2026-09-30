@@ -15,13 +15,13 @@ test('home harbor animates, stays behind controls and supports reduced motion', 
   expect(after.beacon).not.toBe(before.beacon);expect(after.shipX).not.toBe(before.shipX);expect(after.time).not.toBe(before.time);
   await page.screenshot({path:'artifacts/harbor-desktop.png',fullPage:true});
   await page.getByRole('button',{name:'Войти',exact:true}).click();
-  await expect(page.getByLabel('Электронная почта')).toBeVisible();
+  await expect(page.getByLabel('Логин или почта')).toBeVisible();
   await page.getByRole('button',{name:'На стартовый экран'}).click();
   await page.getByRole('button',{name:'Создать аккаунт',exact:true}).click();
-  await expect(page.getByLabel('Позывной')).toBeVisible();
+  await expect(page.getByLabel('Логин',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'На стартовый экран'}).click();
   await page.setViewportSize({width:390,height:844});
-  await expect(page.getByRole('button',{name:'Играть без регистрации',exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Играть с ботом',exact:true})).toBeInViewport();
   await page.waitForTimeout(1000);
   await page.screenshot({path:'artifacts/harbor-mobile.png',fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

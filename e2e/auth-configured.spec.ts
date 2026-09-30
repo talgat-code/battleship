@@ -22,6 +22,7 @@ test('configured SDK: legacy email login, profile, restored session and logout (
   await page.getByLabel('Логин или почта').fill(user.email);await page.getByLabel('Пароль',{exact:true}).fill('test-password-123');await page.getByRole('button',{name:'Войти в аккаунт'}).click();
   await expect(page.getByRole('heading',{name:'Профиль командира'})).toBeVisible();await expect(page.getByLabel('Позывной')).toHaveValue('Командир');expect(login).toBe(true);
   await page.reload();await expect(page.getByRole('heading',{name:'Профиль командира'})).toBeVisible();await expect(page.getByRole('button',{name:'Выйти из аккаунта'})).toBeEnabled();
+  await page.evaluate(id=>localStorage.setItem(`fleet-results:${id}:v1`,'broken local queue'),id);await page.reload();await expect(page.getByLabel('Позывной')).toHaveValue('Командир');await expect(page.getByText(/Не все локальные результаты удалось отправить/)).toBeVisible();
   await page.getByRole('button',{name:'Выйти из аккаунта'}).click();await expect(page.getByRole('button',{name:'Войти',exact:true})).toBeVisible();expect(logout).toBe(true);
   await page.reload();await expect(page.getByRole('button',{name:'Войти',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Играть с ботом',exact:true}).click();await page.getByRole('button',{name:'Авторасстановка'}).click();await page.getByRole('button',{name:'Начать операцию'}).click();await expect(page.getByText('Ваш ход, командир')).toBeVisible();

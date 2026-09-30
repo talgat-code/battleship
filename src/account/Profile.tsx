@@ -20,7 +20,9 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
     void ranking().then(r=>{if(version!==loadVersion.current)return;setNetwork(r.me);setNetworkStatus(r.me?'':'Сетевых матчей пока нет.');}).catch(()=>version===loadVersion.current&&setNetworkStatus('Сетевая статистика недоступна. Проверьте миграцию 004 и подключение.'));
     setBusy(true); setMessage('');
     try {
-      await flushResults(user.id);
+      // A broken local queue must not hide the actual server profile.
+      let syncFailed=false;
+      try{await flushResults(user.id);}catch{syncFailed=true;}
       const results = await Promise.all([
         supabase!.from('profiles').select('nickname').eq('id', user.id).single(),
         supabase!.from('matches').select('*').eq('user_id', user.id).order('finished_at', { ascending: false }).limit(100),
@@ -32,6 +34,7 @@ export default function Profile({ user, back, logout }: { user: User; back: () =
       setName(results[0].data?.nickname || 'Командир'); setRows((results[1].data || []) as Result[]);
       setCounts([results[2].count || 0, results[3].count || 0]);
       setLoaded(true);
+      if(syncFailed)setMessage('Профиль загружен. Не все локальные результаты удалось отправить; повторите обновление позже.');
     } catch { if(version===loadVersion.current)setMessage('Не удалось загрузить профиль. Проверьте подключение и настройку базы. Результаты, ожидающие отправки, сохранены на устройстве.'); }
     finally { if(version===loadVersion.current)setBusy(false); }
   }

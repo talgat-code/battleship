@@ -70,7 +70,7 @@ export default function Entry() {
   function navigate(next:View,replace=false) { const url=new URL(location.href);url.hash='';const previous=requestedView()||view;if(['shop','leaders','profile','guide'].includes(next)&&['home','friend','game'].includes(previous))url.searchParams.set('back',previous);url.searchParams.set('view',next);history[replace?'replaceState':'pushState'](null,'',url);setView(next);setMessage('');setPassword('');setShowPassword(false); }
   useEffect(()=>{const pop=()=>{setView(requestedView()||(new URLSearchParams(location.search).has('room')?'friend':'home'));setPassword('');};window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop);},[]);
   const [savedRoom,setSavedRoom]=useState<string|null>(null);
-  useEffect(()=>{const update=()=>setSavedRoom(user?localStorage.getItem(`fleet:room:${user.id}`):null);update();window.addEventListener('fleet:room',update);return()=>window.removeEventListener('fleet:room',update);},[user?.id]);
+  useEffect(()=>{const update=()=>{try{setSavedRoom(user?localStorage.getItem(`fleet:room:${user.id}`):null);}catch{setSavedRoom(null);}};update();window.addEventListener('fleet:room',update);return()=>window.removeEventListener('fleet:room',update);},[user?.id]);
   function returnPrevious(){navigate((new URLSearchParams(location.search).get('back') as View)||'home');}
   function returnToBattle(){if(savedRoom){const url=new URL(location.href);url.searchParams.set('room',savedRoom);url.searchParams.delete('invite');history.replaceState(null,'',url);friend();}else navigate('game');}
   function friend(){friendIntent.current=true;navigate('friend');}

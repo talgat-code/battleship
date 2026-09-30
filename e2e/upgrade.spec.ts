@@ -1,6 +1,7 @@
 import { test,expect } from '@playwright/test';
 import { chooseShot, type Difficulty } from '../src/bot';
 import { STORAGE_KEY,LETTERS, type Shot } from '../src/game';
+import {sunkPerimeter} from '../src/sunkPerimeter';
 
 for(const level of ['rookie','tactician','admiral'] as Difficulty[])test(`complete guest match on ${level}`,async({page})=>{
   test.setTimeout(120000);
@@ -13,7 +14,7 @@ for(const level of ['rookie','tactician','admiral'] as Difficulty[])test(`comple
     const visible=await page.evaluate(key=>{const g=JSON.parse(localStorage.getItem(key)!);return{phase:g.phase,turn:g.turn,shots:g.bot.shots as Shot[]};},STORAGE_KEY);
     if(visible.phase==='finished')break;
     if(visible.turn==='bot'){await page.clock.fastForward(1000);continue;}
-    const c=chooseShot(visible.shots,'admiral');
+    const c=chooseShot([...visible.shots,...sunkPerimeter(visible.shots).map(c=>({...c,result:'miss' as const}))],'admiral');
     await page.getByRole('button',{name:`Поле противника ${LETTERS[c.x]}${c.y+1}`,exact:true}).click();
   }
   await expect(page.locator('.victory-card')).toBeVisible();

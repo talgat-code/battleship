@@ -18,5 +18,8 @@ select to_regprocedure('public.fleet_emote(jsonb)') as emotions_rpc,
   to_regprocedure('public.duel_channel_member(text)') as private_channel_check,
   exists(select 1 from information_schema.columns where table_schema='public' and table_name='duel_rooms' and column_name='powers') as network_cards_schema;
 select policyname,roles,cmd,qual from pg_policies where schemaname='realtime' and tablename='messages';
+select to_regprocedure('public.fleet_chat(jsonb)') as chat_rpc;
+select c.relname,c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+where n.nspname='public' and c.relname in ('duel_chat_messages','duel_chat_limits');
 -- If the last result is non-null, inspect that existing history separately:
 -- select version from supabase_migrations.schema_migrations order by version;
