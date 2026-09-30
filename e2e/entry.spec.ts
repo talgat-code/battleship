@@ -1,0 +1,28 @@
+import { test, expect } from '@playwright/test';
+import { STORAGE_KEY } from '../src/game';
+test('guest entry, account forms without service, and intact guest continuation', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Играть без регистрации', exact: true })).toBeVisible();
+  await page.screenshot({ path: 'artifacts/start-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Играть без регистрации', exact: true }).click();
+  await page.getByRole('button', { name: 'Авторасстановка' }).click();
+  await page.getByRole('button', { name: 'Начать операцию' }).click();
+  const saved = await page.evaluate(key => localStorage.getItem(key), STORAGE_KEY);
+  await page.getByRole('button', { name: 'Гость · Войти' }).click();
+  await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+  await expect(page.getByText(/сервис аккаунтов не настроен/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Зарегистрироваться' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Уже есть аккаунт — войти' }).click();
+  await expect(page.getByRole('button', { name: 'Войти в аккаунт' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Играть без регистрации', exact: true }).click();
+  expect(await page.evaluate(key => localStorage.getItem(key), STORAGE_KEY)).toBe(saved);
+  await page.reload();
+  await expect(page.getByText('Ваш ход, командир')).toBeVisible();
+  await page.getByRole('button', { name: 'Новая игра', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Новая игра', exact: true }).click();
+  await expect(page.getByText('Осталось разместить: 10')).toBeVisible();
+  await page.getByRole('button', { name: 'Гость · Войти' }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'artifacts/start-mobile.png', fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

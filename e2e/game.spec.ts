@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshGame, place, Game, fire, LETTERS, STORAGE_KEY } from '../src/game';
+test.beforeEach(async ({ context }) => { await context.addInitScript(() => localStorage.setItem('fleet:entry', 'guest')); });
 
 const positions = [
   { x: 0, y: 0 }, { x: 0, y: 2 }, { x: 0, y: 4 },
@@ -47,7 +48,7 @@ test('desktop: manual deployment, rotation, reset, autoset and battle', async ({
   await expect(page.getByText('Ваш ход, командир')).toBeVisible();
   await noOverflow(page);
   const board = await page.locator('.board').first().boundingBox();
-  expect(board!.width).toBeGreaterThan(650);
+  expect(board!.width).toBeGreaterThan(600);
   expect(errors).toEqual([]);
 });
 
@@ -89,6 +90,7 @@ test('desktop: miss, bot turn, hit, sinking, victory and persisted finish', asyn
 test('mobile: touch confirmation, large cells, placement and shooting', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const page = await context.newPage();
+  await context.addInitScript(() => localStorage.setItem('fleet:entry', 'guest'));
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');

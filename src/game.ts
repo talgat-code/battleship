@@ -3,7 +3,7 @@ export type Ship = { id: number; length: number; cells: Cell[] };
 export type Shot = Cell & { result: 'miss' | 'hit' | 'sunk' };
 export type Board = { ships: Ship[]; shots: Shot[] };
 export type Side = 'player' | 'bot';
-export type Game = { version: 1; phase: 'setup' | 'battle' | 'finished'; turn: Side; player: Board; bot: Board; winner?: Side; log: string[] };
+export type Game = { version: 1; matchId?: string; phase: 'setup' | 'battle' | 'finished'; turn: Side; player: Board; bot: Board; winner?: Side; log: string[] };
 export const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
 export const LETTERS = 'АБВГДЕЖЗИК';
 export const same = (a: Cell, b: Cell) => a.x === b.x && a.y === b.y;

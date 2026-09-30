@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Anchor, ArrowRight, Crosshair, RotateCw, Shuffle, Radio, Shield, Waves, RotateCcw, Check, Info, Trophy, Activity, Cpu } from 'lucide-react';
 import Board from './Board';
+import World from './scene/World';
+import { gameKey, enqueue } from './account/storage';
+import { flushResults } from './account/results';
 import useMedia from './useMedia';
-import { FLEET, Game, Cell, freshGame, decodeSave, STORAGE_KEY, place, randomFleet, cellsFor, canPlace, fire, botTarget, isSunk } from './game';
+import { FLEET, Game, Cell, freshGame, decodeSave, place, randomFleet, cellsFor, canPlace, fire, botTarget, isSunk } from './game';
 
 const names: Record<number, string> = { 1: 'Патрульный катер', 2: 'Корвет', 3: 'Эсминец', 4: 'Авианосец' };
-function load() { try { const raw = localStorage.getItem(STORAGE_KEY); return raw && decodeSave(raw) || freshGame(); } catch { return freshGame(); } }
+function load(key: string) { try { const raw = localStorage.getItem(key); const g = raw && decodeSave(raw) || freshGame(); return { ...g, matchId: g.matchId || crypto.randomUUID() }; } catch { return { ...freshGame(), matchId: crypto.randomUUID() }; } }
 
-export default function App() {
-  const [game, setGame] = useState<Game>(load);
+export default function App({ userId, onAccount, accountLabel }: { userId?: string; onAccount: () => void; accountLabel: string }) {
+  const storageKey = gameKey(userId);
+  const [game, setGame] = useState<Game>(() => load(storageKey));
+  const [syncNotice, setSyncNotice] = useState('');
   const [selected, setSelected] = useState(() => FLEET.findIndex((_, id) => !game.player.ships.some(s => s.id === id)));
   const [vertical, setVertical] = useState(false);
   const [hover, setHover] = useState<Cell | null>(null);
@@ -17,22 +22,35 @@ export default function App() {
   const [confirm, setConfirm] = useState(false);
   const [help, setHelp] = useState(false);
   const [field, setField] = useState<'player' | 'bot'>(() => game.phase === 'setup' ? 'player' : 'bot');
-  const [economy, setEconomy] = useState(() => window.matchMedia('(max-width: 760px)').matches);
+  const [economy, setEconomy] = useState(() => { try { return localStorage.getItem('fleet:reduce-motion') === 'true'; } catch { return false; } });
   const reduced = useMedia('(prefers-reduced-motion: reduce)');
   const narrow = useMedia('(max-width: 760px)');
   const moving = !economy && !reduced;
   const setup = game.phase === 'setup';
   const finished = game.phase === 'finished';
   const ready = game.player.ships.length === 10;
+  useEffect(() => { try { localStorage.setItem('fleet:reduce-motion', String(economy)); } catch { /* Game remains usable when storage is unavailable. */ } }, [economy]);
 
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); setSaved(true); } catch { setSaved(false); } }, [game]);
+  useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(game)); setSaved(true); } catch { setSaved(false); } }, [game, storageKey]);
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    const sync = async () => {
+      try {
+        if (game.phase === 'finished' && game.matchId) enqueue({ id: game.matchId, user_id: userId, outcome: game.winner === 'player' ? 'win' : 'loss', shots: game.bot.shots.length, finished_at: new Date().toISOString() });
+        await flushResults(userId); if (live) setSyncNotice(game.phase === 'finished' ? 'Результат сохранён в профиле.' : '');
+      } catch { if (live) setSyncNotice('Результат пока не отправлен в профиль. Проверьте подключение и повторите синхронизацию в профиле.'); }
+    };
+    void sync(); window.addEventListener('online', sync);
+    return () => { live = false; window.removeEventListener('online', sync); };
+  }, [userId, game.phase, game.matchId]);
   useEffect(() => {
     if (game.phase !== 'battle' || game.turn !== 'bot') return;
     const timer = setTimeout(() => setGame(g => g.phase === 'battle' && g.turn === 'bot' ? fire(g, 'bot', botTarget(g.player.shots)) : g), 850);
     return () => clearTimeout(timer);
   }, [game]);
 
-  function reset() { setGame(freshGame()); setSelected(0); setHover(null); setNotice(''); setConfirm(false); setField('player'); }
+  function reset() { setGame({ ...freshGame(), matchId: crypto.randomUUID() }); setSelected(0); setHover(null); setNotice(''); setConfirm(false); setField('player'); }
   function deploy(c: Cell) {
     if (!setup || ready) return;
     const ships = place(game.player.ships, selected, c, vertical);
@@ -50,12 +68,15 @@ export default function App() {
   const status = setup ? ready ? 'Флот готов к выходу' : 'Подготовка к операции' : finished ? game.winner === 'player' ? 'Победа, командир' : 'Ваш флот уничтожен' : game.turn === 'player' ? 'Ваш ход, командир' : 'Ход бота · противник стреляет';
 
   return <div className={`app-shell phase-${game.phase} ${moving ? 'motion-on' : 'motion-off'}`}>
+    <World moving={moving} />
     <header className="topbar">
       <a className="brand" href="./"><span className="brand-icon"><Anchor size={25} /></span><span>ФЛОТ<span className="brand-divider">/</span><b>СЕКТОР 10</b><small>ТАКТИЧЕСКИЙ КОМАНДНЫЙ ЦЕНТР</small></span></a>
-      <div className="header-right"><span className="connection"><i /> СВЯЗЬ УСТАНОВЛЕНА</span><button className="button graphics-toggle" aria-pressed={economy || reduced} disabled={reduced} onClick={() => setEconomy(!economy)} title={reduced ? 'Системная настройка уменьшения движения включена' : 'Отключить анимацию воды и эффектов, снизить нагрузку'}><Cpu size={16} /><span>{economy || reduced ? 'Спокойное море' : 'Живое море'}</span></button><button className="icon-button" aria-label="Правила игры" aria-expanded={help} onClick={() => setHelp(!help)}><Info size={20} /></button></div>
+      <div className="header-right"><span className="connection"><i /> СУМЕРЕЧНЫЙ АРХИПЕЛАГ</span><button className="button graphics-toggle" aria-label={economy || reduced ? 'Спокойное море' : 'Живое море'} aria-pressed={economy || reduced} disabled={reduced} onClick={() => setEconomy(!economy)} title={reduced ? 'Системная настройка уменьшения движения включена' : 'Уменьшить движение: остановить волны, качку, акул и частицы'}><Cpu size={16} /><span>{economy || reduced ? 'Спокойное море' : 'Живое море'}</span></button><button className="icon-button" aria-label="Правила игры" aria-expanded={help} onClick={() => setHelp(!help)}><Info size={20} /></button></div>
     </header>
     <main>
-      <section className="page-heading"><div><div className="eyebrow"><span /> ОПЕРАЦИЯ «ТИХИЙ ОКЕАН» <span className="operation-number">/ 001</span></div><h1>{title}<span>.</span></h1><p>Море скрывает позиции. Каждый выстрел открывает правду.</p></div><button className="button secondary new-game" onClick={() => setConfirm(true)}><RotateCcw size={16} /> Новая игра</button></section>
+      <div className="account-bar"><span>{userId ? 'Личный флот · история в профиле' : 'Гостевой флот · сохранение на устройстве'}</span><button className="button secondary" onClick={onAccount}>{accountLabel}</button></div>
+      {syncNotice && <p className="account-notice" role="status">{syncNotice}</p>}
+      <section className="page-heading"><div><div className="eyebrow"><span /> СУМЕРЕЧНЫЙ АРХИПЕЛАГ <span className="operation-number">/ СЕКТОР 10</span></div><h1>{title}<span>.</span></h1><p>За скалами собирается гроза. Маяк ещё держит курс.</p></div><div className="weather-readout" aria-hidden="true"><Waves size={30} /><span>СЕВЕРНЫЙ ТИХИЙ ОКЕАН<b>19:42 <i> / </i> СИНИЙ ЧАС</b></span></div><button className="button secondary new-game" onClick={() => setConfirm(true)}><RotateCcw size={16} /> Новая игра</button></section>
       {help && <section className="help-panel"><h2>Приказ командования</h2><p>Разместите 10 кораблей, оставляя между ними клетку, включая диагонали. Корабль занимает клетки вправо или вниз от выбранной. Попадание сохраняет ход, промах передаёт его. Уничтожьте весь флот противника для победы. На сенсорном экране сначала выберите клетку, затем подтвердите действие кнопкой под полем. «Крупные клетки» увеличивают поле; его можно сдвигать в сторону.</p></section>}
       <section className={`operation-strip ${!setup && !finished && game.turn === 'bot' ? 'bot-turn' : ''} ${finished ? 'finished' : ''}`} aria-live="polite">
         <div className="operation-state"><span className="status-icon">{finished ? <Trophy /> : setup ? <Anchor /> : <Crosshair />}</span><div><small>{setup ? '01 / РАССТАНОВКА' : finished ? '03 / ИТОГ ОПЕРАЦИИ' : '02 / МОРСКОЙ БОЙ'}</small><strong>{status}</strong></div></div>
