@@ -1,5 +1,8 @@
 // Stable source keys; {0}, {1} interpolate numbers and localized labels.
 const rows = `
+Пользователь зарегистрирован. Профиль создан. Вы вошли в аккаунт.|Пайдаланушы тіркелді. Профиль жасалды. Аккаунтқа кірдіңіз.|Registration successful. Profile created. You are signed in.
+Аккаунт создан, вход выполнен. Профиль пока не удалось загрузить — проверьте подключение или откройте профиль повторно.|Аккаунт жасалды, кіру орындалды. Профиль жүктелмеді — байланысты тексеріңіз немесе профильді қайта ашыңыз.|Account created and signed in. Your profile could not be loaded yet — check your connection or reopen your profile.
+Вход выполнен. С возвращением, командир!|Кіру орындалды. Қош келдіңіз, командир!|Signed in. Welcome back, commander!
 Все шесть эмоций бесплатны и доступны в бою.|Барлық алты эмоция тегін және шайқаста қолжетімді.|All six emotions are free and available in battle.
 Логин|Логин|Username
 Логин или почта|Логин немесе пошта|Username or email

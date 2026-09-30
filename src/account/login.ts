@@ -24,4 +24,16 @@ export async function loginWithName(action:'register'|'login',login:string,passw
   if(!data?.session?.access_token||!data.session.refresh_token)throw {code:'service_unavailable'};
   const result=await supabase.auth.setSession(data.session);
   if(result.error)throw result.error;
+  const userId=result.data.user?.id;
+  if(!userId)throw {code:'service_unavailable'};
+  // Confirm the server-created profile before telling the player it exists.
+  // A profile read failure must not repeat registration or overwrite the account.
+  let profileReady=false;
+  if(action==='register'){
+    try{
+      const profile=await supabase.from('profiles').select('id').eq('id',userId).abortSignal(AbortSignal.timeout(10000)).single();
+      profileReady=!profile.error&&profile.data?.id===userId;
+    }catch{/* The existing session remains usable; show a partial-success notice. */}
+  }
+  return {userId,profileReady};
 }

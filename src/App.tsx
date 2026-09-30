@@ -20,7 +20,7 @@ import { FLEET, Game, Cell, freshGame, decodeSave, place, randomFleet, cellsFor,
 const names: Record<number, string> = { 1: 'Патрульный катер', 2: 'Корвет', 3: 'Эсминец', 4: 'Авианосец' };
 function load(key: string) { try { const raw = localStorage.getItem(key); const g = raw && decodeSave(raw) || freshGame(); return { ...g, matchId: g.matchId || crypto.randomUUID() }; } catch { return { ...freshGame(), matchId: crypto.randomUUID() }; } }
 
-export default function App({ userId, onAccount, accountLabel, onShop }: { onShop: () => void; userId?: string; onAccount: () => void; accountLabel: string }) {
+export default function App({ accountNotice, userId, onAccount, accountLabel, onShop }: { accountNotice?:string; onShop: () => void; userId?: string; onAccount: () => void; accountLabel: string }) {
   const storageKey = gameKey(userId);
   const {wallet,run,busy,ready:walletReady,error:walletError}=useWallet(userId);
   const [card,setCard]=useState<Card|null>(null);
@@ -132,6 +132,7 @@ export default function App({ userId, onAccount, accountLabel, onShop }: { onSho
       <div className="header-right"><LanguageSwitch/><button className="button secondary" onClick={onShop}>{t("Магазин · ◈ ")}{tr(walletReady?wallet.balance:'—')}</button>{tr(userId && <button className="button header-profile" onClick={onAccount}>{t("Профиль")}</button>)}<SoundButton /><span className="connection"><i />{t(" СУМЕРЕЧНЫЙ АРХИПЕЛАГ")}</span><button className="button graphics-toggle" aria-label={tr(economy || reduced ? 'Спокойное море' : 'Живое море')} aria-pressed={economy || reduced} disabled={reduced} onClick={() => setEconomy(!economy)} title={tr(reduced ? 'Системная настройка уменьшения движения включена' : 'Уменьшить движение: остановить волны, качку, акул и частицы')}><Cpu size={16} /><span>{tr(economy || reduced ? 'Спокойное море' : 'Живое море')}</span></button><button className="icon-button" aria-label={t("Правила игры")} aria-expanded={help} onClick={() => setHelp(!help)}><Info size={20} /></button></div>
     </header>
     <main>
+      {accountNotice&&<p className="account-notice" role="status">{t(accountNotice)}</p>}
       <div className="account-bar"><span>{tr(userId ? 'Личный флот · история в профиле' : 'Гостевой флот · сохранение на устройстве')}</span><button className="button secondary" onClick={onAccount}>{tr(accountLabel)}</button></div>
       {tr(walletError && <p role="alert" className="account-notice">{tr(walletError)}</p>)}{tr(syncNotice && <p className="account-notice" role="status">{tr(syncNotice)}</p>)}
       <section className="difficulty-panel" aria-label={t("Сложность бота")}>{tr(setup ? <><label>{t("Сложность бота ")}<select aria-label={t("Сложность бота")} value={difficulty} onChange={e=>{const value=e.target.value as Difficulty;setPreferredDifficulty(value);setGame(g=>({...g,difficulty:value}));try{localStorage.setItem('fleet:difficulty',value);}catch{}}}>{tr(Object.entries(LEVELS).map(([key,v])=><option key={key} value={key}>{tr(v.name)}</option>))}</select></label><p>{tr(LEVELS[difficulty].description)}</p><details><summary>{t("Чем отличаются уровни")}</summary>{tr(Object.values(LEVELS).map(v=><p key={v.name}><b>{tr(v.name)}:</b> {tr(v.description)}</p>))}</details></> : <span>{t("Противник: ")}<b>{tr(LEVELS[difficulty].name)}</b></span>)}</section>
