@@ -4,6 +4,7 @@ import { catalog } from './catalog';
 import { useWallet } from './store';
 import { LanguageSwitch } from '../i18n';
 import artwork from './artwork.json';
+import Membership from './Membership';
 const images:Record<string,string>=artwork;
 export default function Shop({userId,back}:{userId?:string;back:()=>void}) {
   const {wallet,error,busy,ready,run}=useWallet(userId);
@@ -11,6 +12,7 @@ export default function Shop({userId,back}:{userId?:string;back:()=>void}) {
   const gate=useRef(false);
   return <section className="shop-page"><header><div><small>{t("СНАБЖЕНИЕ ФЛОТА")}</small><h1>{t("Морской арсенал")}</h1></div><LanguageSwitch/><strong className="token-balance">◈ {tr(ready?wallet.balance:'—')} <span>{t("жетонов")}</span></strong><button className="button secondary" onClick={back}>{t("Вернуться к игре")}</button></header>
     <p>{t("Жетоны можно получить за завершённые партии")}</p><p>{tr(userId?'Покупки сохраняются в аккаунте после подтверждения сервера.':'Гостевая коллекция хранится на этом устройстве.')}</p>
+    <Membership/>
     <nav className="shop-tabs">{tr([['card','Карточки'],['owned','Мои предметы']].map(([id,name])=><button className="button" key={id} aria-pressed={tab===id} onClick={()=>setTab(id)}>{tr(name)}</button>))}</nav>
     <p role="status">{tr(error)}</p><p>{t("Все шесть эмоций бесплатны и доступны в бою.")}</p><label><input type="checkbox" checked={wallet.hidden} disabled={!ready||busy} onChange={e=>void run({type:'hide',value:e.target.checked})}/>{t(" Скрыть эмоции")}</label>
     <div className="shop-grid">{tr(catalog.filter(item=>item.kind==='card'&&(tab!=='owned'||wallet.items[item.id]>0)).map(item=><article className={`shop-item art-${item.id}`} key={item.id}>
